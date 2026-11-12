@@ -67,7 +67,7 @@
 </head>
 <body>
 <main>
-  <h1>💡 Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 26</span></h1>
+  <h1>💡 Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 27</span></h1>
   <p class="sub">Sticks, rideau et autres lampes LED Bluetooth, pilotés ensemble ou par groupe.</p>
 
   <div id="nobt" class="card warn hidden">
@@ -169,7 +169,12 @@
         <label><input type="checkbox" id="diyFlipY"> Miroir haut/bas</label>
         <label><input type="checkbox" id="diySwap"> Pivoter</label>
       </div>
-      <div class="row"><label><input type="checkbox" id="liveMulti"> Spectre en direct : plusieurs LED par paquet (plus rapide, à essayer)</label></div>
+      <div style="margin-top:10px; font-weight:600">📺 Spectre en direct</div>
+      <div class="row"><label class="lbl">LED / image</label><input type="range" id="liveBudget" min="5" max="120" value="30"><span class="muted" id="liveBudgetVal" style="width:40px">30</span></div>
+      <div class="row"><label class="lbl">Pause</label><input type="range" id="liveGap" min="0" max="40" value="10"><span class="muted" id="liveGapVal" style="width:60px">10 ms</span></div>
+      <div class="row"><label class="lbl">Rattrapage</label><input type="range" id="liveRefresh" min="0" max="20" value="6"><span class="muted" id="liveRefreshVal" style="width:60px">6 LED</span></div>
+      <div class="muted">Si des LED restent éteintes : baisse « LED / image » ou monte « Pause ». Si c'est fluide : fais l'inverse.</div>
+      <div class="row"><label><input type="checkbox" id="liveMulti"> Plusieurs LED par paquet (beaucoup plus rapide, à essayer)</label></div>
       <div class="row"><button id="diyDiag">🔍 Diagnostic du rideau</button><button id="diyColorBack">Revenir en mode couleur</button></div>
     </details>
   </div>
@@ -1625,11 +1630,13 @@ $('diyColorBack').onclick = () => diyTargets().forEach(d => { diyStop(d); send(d
   cv.addEventListener('contextmenu', e => e.preventDefault());
   cv.addEventListener('pointerdown', e => { cv.setPointerCapture(e.pointerId); paint(e); });
   cv.addEventListener('pointermove', e => { if (cv.hasPointerCapture(e.pointerId)) paint(e); });
-  ['diyFlipX', 'diyFlipY', 'diySwap', 'tempoBeats', 'tempoDir', 'tempoCal', 'liveMulti'].forEach(id => {
+  ['diyFlipX', 'diyFlipY', 'diySwap', 'tempoBeats', 'tempoDir', 'tempoCal', 'liveMulti', 'liveBudget', 'liveGap', 'liveRefresh'].forEach(id => {
     const el = $(id), v = store.get('diy4_' + id);
     if (v !== undefined && v !== null) { if (el.type === 'checkbox') el.checked = v; else el.value = v; }
     el.addEventListener('change', () => store.set('diy4_' + id, el.type === 'checkbox' ? el.checked : el.value));
   });
+  const lbl = () => { $('liveBudgetVal').textContent = $('liveBudget').value; $('liveGapVal').textContent = $('liveGap').value + ' ms'; $('liveRefreshVal').textContent = $('liveRefresh').value + ' LED'; };
+  ['liveBudget', 'liveGap', 'liveRefresh'].forEach(id => $(id).addEventListener('input', lbl)); lbl();
   drawDiy(); tempoInfo();
   setInterval(() => { if (!$('diyCard').classList.contains('hidden')) tempoInfo(); }, 1000);
 }
@@ -1678,20 +1685,34 @@ function specFrame(d) {
   return img;
 }
 async function liveSendFrame(d) {
-  const img = specFrame(d), prev = d.liveImg, changes = [];
-  for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
-    const i = r * N + c; if (img[i] !== prev[i]) changes.push([devIndex(r, c), img[i]]);
-  }
-  if (!changes.length) return;
+  // d.liveImg = ce que le rideau est censé afficher (mis à jour LED par LED, seulement pour ce qui est parti)
+  const img = specFrame(d), sent = d.liveImg, changes = [];
+  for (let i = 0; i < N * N; i++) if (img[i] !== sent[i]) changes.push(i);
+  // rattrapage : quelques LED renvoyées à chaque image, en tournant sur tout le rideau (corrige les paquets perdus)
+  const refresh = [];
+  for (let k = 0; k < +$('liveRefresh').value; k++) { d.liveCursor = ((d.liveCursor || 0) + 1) % (N * N); refresh.push(d.liveCursor); }
+  const budget = +$('liveBudget').value;                       // LED max par image : le rideau ne suit pas au-delà
+  const todo = changes.slice(0, budget).concat(refresh.filter(i => !changes.includes(i)));
+  if (!todo.length) return;
   const room = Math.max(1, Math.min(79, Math.floor(((d.device.gatt.mtu || 23) - 3 - 4) / 3)));
   const per = $('liveMulti').checked ? room : 1;               // documenté : une LED par paquet
-  for (let i = 0; i < changes.length; i += per) {
-    const part = changes.slice(i, i + per);
-    const pkt = fairy([0xaa, 0xd1, 3 * part.length, ...part.flatMap(([x, col]) => [x >> 8, x & 0xff, col])]);
+  const gap = +$('liveGap').value;
+  for (let i = 0; i < todo.length; i += per) {
+    const part = todo.slice(i, i + per);
+    const pkt = fairy([0xaa, 0xd1, 3 * part.length, ...part.flatMap(idx => {
+      const x = devIndex(Math.floor(idx / N), idx % N); return [x >> 8, x & 0xff, img[idx]]; })]);
     if ((d.liveLogged = (d.liveLogged || 0) + 1) <= 3) log(`→ pixel : ${hex(pkt)}`);
     await writeRetry(d.char, new Uint8Array(pkt), 'noresp');
+    part.forEach(idx => sent[idx] = img[idx]);
+    d.liveCount = (d.liveCount || 0) + part.length;
+    if (gap) await sleep(gap);                                 // laisse le rideau digérer
   }
-  d.liveImg = img;
+  const now = performance.now();
+  if (!d.liveStat) d.liveStat = now;
+  if (now - d.liveStat > 5000) {
+    log(`📺 ${Math.round(d.liveCount * 1000 / (now - d.liveStat))} LED/s envoyées · ${changes.length} en attente`);
+    d.liveStat = now; d.liveCount = 0;
+  }
 }
 let liveTimer = null;
 function liveStart(list) {
@@ -1816,7 +1837,7 @@ renderTargets();
 if (navigator.bluetooth) autoReconnect();
 window.__androidPermissionsChanged = () => { autoReconnect(); listSources(false); };
 if (IS_ANDROID) document.querySelectorAll('.pc-only').forEach(e => e.remove());
-log('Lampes — version 26' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
+log('Lampes — version 27' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
 </script>
 </body>
 </html>
