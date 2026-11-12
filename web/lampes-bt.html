@@ -67,7 +67,7 @@
 </head>
 <body>
 <main>
-  <h1>💡 Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 22</span></h1>
+  <h1>💡 Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 23</span></h1>
   <p class="sub">Sticks, rideau et autres lampes LED Bluetooth, pilotés ensemble ou par groupe.</p>
 
   <div id="nobt" class="card warn hidden">
@@ -1419,6 +1419,15 @@ async function listen(d) {
       const b = new Uint8Array(ev.target.value.buffer);
       log(`← rideau : ${hex(b.slice(0, 12))}${b.length > 12 ? ' …' : ''}`);
       if (d.ackWait && b[0] === 0xaa && b[1] === d.ackWait.cmd) { const w = d.ackWait; d.ackWait = null; w.res(true); }
+      if (b[0] === 0xaa && b[1] === 0x01 && b.length >= 9) {                 // état du rideau
+        const q = b.slice(3, -1), modes = { 1: 'couleur fixe', 2: 'animation intégrée', 3: 'musique' };
+        let txt = `ℹ État du rideau : ${q[3] ? 'allumé' : 'éteint'}, mode ${modes[q[4]] || q[4]}`;
+        if (q[4] === 3 && q.length >= 13) {
+          const m = q[5] >> 4, names = ['', 'énergie', 'rythme', 'défilement', 'spectre'];
+          txt += ` → ${names[m] || 'mode ' + m} (${m <= 4 ? 'micro du rideau' : 'micro du téléphone'}), sensibilité ${q[6]}, luminosité ${((q[7] << 8) | q[8]) / 10} %`;
+        }
+        log(txt);
+      }
       if (b[0] === 0xaa && b[1] === 0x00 && b.length > 30) {
         const p = b.slice(3);
         log(`ℹ Le rideau annonce : ${(p[20] << 8) | p[21]} LED, ${p[22]} colonnes, ${p[24]} lignes, type DIY ${p[26]}`);
@@ -1617,6 +1626,11 @@ function nmSend(mode, only, sens) {
   list.forEach(d => { d.anim = null; d.fx = null; if (d.diy) diyStop(d); d.nm = { mode, sens: sens || +$('nmSens').value }; send(d, pkt); });
   document.querySelectorAll('[data-nm]').forEach(b => b.classList.toggle('playing', +b.dataset.nm === mode));
   markPlaying();
+  // vérification : le rideau confirme-t-il le mode musique ?
+  list.forEach(d => exclusive(d, async () => {
+    await listen(d); await sleep(700);
+    await writeRetry(d.char, new Uint8Array(fairy([0xaa, 0x01, 0x00])), 'noresp');
+  }).catch(e => log('Vérification impossible : ' + e.message)));
 }
 document.querySelectorAll('[data-nm]').forEach(b => b.onclick = () => nmSend(+b.dataset.nm));
 ['nmSens', 'nmAuto'].forEach(id => $(id).addEventListener('change', () => { if (nmMode) nmSend(nmMode); }));
@@ -1678,7 +1692,7 @@ renderTargets();
 if (navigator.bluetooth) autoReconnect();
 window.__androidPermissionsChanged = () => { autoReconnect(); listSources(false); };
 if (IS_ANDROID) document.querySelectorAll('.pc-only').forEach(e => e.remove());
-log('Lampes — version 22' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
+log('Lampes — version 23' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
 </script>
 </body>
 </html>
