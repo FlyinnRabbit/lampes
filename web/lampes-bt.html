@@ -69,7 +69,7 @@
 </head>
 <body>
 <main>
-  <h1>💡 Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 36</span></h1>
+  <h1>💡 Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 37</span></h1>
   <p class="sub">Sticks, rideau et autres lampes LED Bluetooth, pilotés ensemble ou par groupe.</p>
 
   <div id="nobt" class="card warn hidden">
@@ -1107,7 +1107,7 @@ const ANIMS = [
   { h:'Ambiances' },
   { id:'clock',  name:'🕐 Cercle horloge', fn: p => hsvToRgb(p / 14, 1, 1) },
   { id:'music',  name:'🎵 Musique', hidden: true, fn: (p, k) => musicColor(k) },
-  { id:'wheel',  name:'🎨 Roue en rotation', fn: p => { const [h, s] = wheelSpin(p); return hsvToRgb(h, s, 1); } },
+  { id:'wheel',  name:'🌈 Disque chromatique', fn: p => { const [h, s] = wheelSpin(p); return hsvToRgb(h, s, 1); } },
   { id:'fire',   name:'🔥 Feu de camp', fn: feuDeCamp },
   { id:'candle', name:'🕯️ Bougie', fn: (p, k) => { const v = 0.75 * bruit(p * 5, k + 11) + 0.25 * bruit(p * 17, k + 12);
       return hsvToRgb(0.075 + 0.02 * v, 0.85, 0.45 + 0.4 * v); } },
@@ -1780,13 +1780,15 @@ function wheelDiscFrame(d) {
   const [h0] = rgbToHsv(state.r, state.g, state.b);
   const p = d.anim ? clock.p - d.anim.p0 : 0;
   const multi = $('liveMulti').checked, step = multi ? 10 : 30;          // sans paquets groupés : moins de nuances, moins de LED à changer
-  const rot = (h0 + p / 14) * 360;                                       // même tour que la couleur des sticks
+  const want = Math.floor((h0 + p / 14) * 360 / step);                   // même tour que la couleur des sticks
+  if (d.wheelStep === undefined || !(d.livePending > 0)) d.wheelStep = want;   // pas d'avance tant que l'image n'est pas complète
+  const rot = d.wheelStep * step;
   for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
     const dist = Math.hypot(c + .5 - N / 2, r + .5 - N / 2);
     if (dist > N / 2) continue;
     if (dist < 1.5) { img[r * N + c] = WHITE; continue; }
     const ang = Math.atan2(c + .5 - N / 2, -(r + .5 - N / 2)) * 180 / Math.PI;   // 0° en haut, sens horaire
-    img[r * N + c] = hueByte(Math.floor((ang + rot) / step) * step);
+    img[r * N + c] = hueByte(Math.floor((ang + rot) / step) * step);   // secteurs de couleur
   }
   return img;
 }
@@ -1895,7 +1897,13 @@ async function liveSendFrame(d) {
   const refresh = [];
   for (let k = 0; k < +$('liveRefresh').value; k++) { d.liveCursor = ((d.liveCursor || 0) + 1) % (N * N); refresh.push(d.liveCursor); }
   const budget = +$('liveBudget').value;                       // LED max par image : le rideau ne suit pas au-delà
-  const todo = changes.slice(0, budget).concat(refresh.filter(i => !changes.includes(i)));
+  // envoi équitable : on commence après la dernière LED envoyée, sinon le haut du rideau prend toute la place
+  const start = changes.findIndex(i => i > (d.liveLast ?? -1));
+  const ordered = start > 0 ? changes.slice(start).concat(changes.slice(0, start)) : changes;
+  const picked = ordered.slice(0, budget);
+  if (picked.length) d.liveLast = picked[picked.length - 1];
+  d.livePending = changes.length - picked.length;              // LED encore en retard après cette image
+  const todo = picked.concat(refresh.filter(i => !changes.includes(i)));
   if (!todo.length) return;
   const room = Math.max(1, Math.min(79, Math.floor(((d.device.gatt.mtu || 23) - 3 - 4) / 3)));
   const per = $('liveMulti').checked ? room : 1;               // documenté : une LED par paquet
@@ -2131,7 +2139,7 @@ renderTargets();
 if (navigator.bluetooth) autoReconnect();
 window.__androidPermissionsChanged = () => { autoReconnect(); listSources(false); };
 if (IS_ANDROID) document.querySelectorAll('.pc-only').forEach(e => e.remove());
-log('Lampes — version 36' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
+log('Lampes — version 37' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
 </script>
 </body>
 </html>
