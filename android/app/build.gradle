@@ -2,6 +2,9 @@ plugins {
     id 'com.android.application'
 }
 
+// numéro de build GitHub : chaque APK a un numéro plus grand que le précédent
+def runNumber = (System.getenv('GITHUB_RUN_NUMBER') ?: '1').toInteger()
+
 android {
     namespace 'be.lampes.app'
     compileSdk 34
@@ -10,8 +13,8 @@ android {
         applicationId 'be.lampes.app'
         minSdk 26
         targetSdk 34
-        versionCode (System.getenv('GITHUB_RUN_NUMBER') ?: '1') as int
-        versionName "18." + (System.getenv('GITHUB_RUN_NUMBER') ?: '0')
+        versionCode runNumber
+        versionName "18." + runNumber
     }
 
     // Clé fixe : chaque nouvel APK s'installe par-dessus l'ancien sans perdre les réglages
