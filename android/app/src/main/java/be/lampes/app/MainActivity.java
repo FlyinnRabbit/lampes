@@ -84,6 +84,7 @@ public class MainActivity extends Activity {
         audio = new AudioBridge();
         web.addJavascriptInterface(ble, "AndroidBle");
         web.addJavascriptInterface(audio, "AndroidAudio");
+        web.addJavascriptInterface(new ScreenCapture.Bridge(this), "AndroidScreen");
 
         // bouton « Arrêter » de la notification
         stopReceiver = new BroadcastReceiver() {
@@ -121,6 +122,30 @@ public class MainActivity extends Activity {
         LampesService.start(this);   // relancé avec le micro autorisé, pour le mode musique en arrière-plan
         // la page retente la reconnexion des lampes une fois les autorisations accordées
         web.evaluateJavascript("window.__androidPermissionsChanged && window.__androidPermissionsChanged()", null);
+    }
+
+    private static final int REQ_CAPTURE = 42;
+
+    /** Ambilight : Android affiche sa fenêtre « Commencer l'enregistrement / le partage de l'écran ». */
+    void askScreenCapture() {
+        try {
+            android.media.projection.MediaProjectionManager mpm =
+                    (android.media.projection.MediaProjectionManager) getSystemService(MEDIA_PROJECTION_SERVICE);
+            ScreenCapture.state = "asking";
+            startActivityForResult(mpm.createScreenCaptureIntent(), REQ_CAPTURE);
+        } catch (Exception e) { ScreenCapture.state = "error"; }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != REQ_CAPTURE) return;
+        if (resultCode != RESULT_OK || data == null) { ScreenCapture.state = "denied"; return; }
+        Intent i = new Intent(this, LampesService.class).setAction(LampesService.CAPTURE)
+                .putExtra("code", resultCode).putExtra("data", data);
+        try {
+            if (Build.VERSION.SDK_INT >= 26) startForegroundService(i); else startService(i);
+        } catch (Exception e) { ScreenCapture.state = "error"; }
     }
 
     @Override

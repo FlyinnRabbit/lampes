@@ -69,7 +69,7 @@
 </head>
 <body>
 <main>
-  <h1>💡 Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 56</span></h1>
+  <h1>💡 Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 57</span></h1>
   <p class="sub">Sticks, rideau et autres lampes LED Bluetooth, pilotés ensemble ou par groupe.</p>
 
   <div id="nobt" class="card warn hidden">
@@ -238,6 +238,31 @@
     </div>
   </div>
 
+
+  <div class="card" id="ambiCard">
+    <h2>🎬 Ambilight</h2>
+    <p class="muted" style="margin:0 0 12px" id="ambiDesc">Les lampes de l'onglet sélectionné prennent la couleur la plus présente à l'écran (films, vidéos, jeux).</p>
+    <div class="row">
+      <label class="lbl">Réactivité</label>
+      <input type="range" id="ambiReact" min="5" max="100" value="45">
+      <span class="muted" id="ambiReactVal" style="width:60px">45 %</span>
+    </div>
+    <div class="row">
+      <label class="lbl">Scènes sombres</label>
+      <select id="ambiDark" style="flex:1; min-width:200px">
+        <option value="dim" selected>Lumière très faible</option>
+        <option value="off">Lampes éteintes</option>
+        <option value="keep">Garder la dernière couleur</option>
+      </select>
+    </div>
+    <div class="row">
+      <button class="primary" id="ambiStart">▶ Démarrer</button>
+      <button id="ambiStop">■ Arrêter</button>
+      <span id="ambiSwatch" style="display:inline-block; width:44px; height:24px; border-radius:6px; background:#000; border:1px solid #333"></span>
+      <span id="ambiStatus" class="muted"></span>
+    </div>
+    <p class="muted" style="margin:10px 0 0" id="ambiNote"></p>
+  </div>
 
   <div class="card" id="musicCard">
     <h2>🎵 Mode musique</h2>
@@ -1492,6 +1517,125 @@ function drawMeter(b, m, h, beat) {
   if (beat) { c.fillStyle = '#fff'; c.fillRect(W2 - 14, 4, 10, H2 - 8); }
 }
 $('mStart').onclick = musicStart;
+/* ---------- Ambilight : couleur dominante de l'écran ---------- */
+const ambi = { on: false, list: [], cur: null, timer: null, video: null, stream: null, cv: null, lastSent: {} };
+const HAS_SCREEN = IS_ANDROID ? typeof AndroidScreen !== 'undefined' : !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia);
+$('ambiNote').textContent = IS_ANDROID
+  ? 'Le téléphone capte son propre écran : Android te demande l\'autorisation à chaque démarrage. Lance ensuite ton film dans une autre app ; Lampes continue en arrière-plan. Les apps protégées (Netflix, Disney+…) apparaissent noires et ne colorent rien ; YouTube, les vidéos du téléphone, VLC, les jeux fonctionnent.'
+  : 'Choisis l\'écran (ou la fenêtre) à capter dans la fenêtre qui s\'ouvre. Les films protégés (Netflix dans le navigateur…) peuvent apparaître noirs ; VLC, YouTube et les jeux fonctionnent.';
+if (!HAS_SCREEN) { $('ambiStart').disabled = true; $('ambiStatus').textContent = 'capture d\'écran indisponible ici'; }
+$('ambiReact').oninput = () => { $('ambiReactVal').textContent = $('ambiReact').value + ' %'; };
+try { const v = localStorage.getItem('ambiReact'); if (v) { $('ambiReact').value = v; $('ambiReact').oninput(); }
+      const k = localStorage.getItem('ambiDark'); if (k) $('ambiDark').value = k; } catch (e) {}
+$('ambiReact').addEventListener('change', () => { try { localStorage.setItem('ambiReact', $('ambiReact').value); } catch (e) {} });
+$('ambiDark').addEventListener('change', () => { try { localStorage.setItem('ambiDark', $('ambiDark').value); } catch (e) {} });
+// pixels RGB → couleur dominante : histogramme de teintes pondéré par la saturation et la luminosité
+function dominantColor(px, n) {
+  const B = 24, w = new Float32Array(B), sr = new Float32Array(B), sg = new Float32Array(B), sb = new Float32Array(B);
+  let grey = 0, gr = 0, gg = 0, gb = 0, dark = 0, vSum = 0;
+  for (let i = 0; i < n; i++) {
+    const r = px[i * 3], g = px[i * 3 + 1], b = px[i * 3 + 2];
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), v = mx / 255, sat = mx ? (mx - mn) / mx : 0;
+    vSum += v;
+    if (v < 0.12) { dark++; continue; }
+    if (sat < 0.22) { grey += v; gr += r; gg += g; gb += b; continue; }
+    let h = 0;
+    if (mx === r) h = ((g - b) / (mx - mn) + 6) % 6; else if (mx === g) h = (b - r) / (mx - mn) + 2; else h = (r - g) / (mx - mn) + 4;
+    const k = Math.floor(h / 6 * B) % B, wt = sat * v * v;
+    w[k] += wt; sr[k] += r * wt; sg[k] += g * wt; sb[k] += b * wt;
+  }
+  let best = 0, bw = -1;
+  for (let k = 0; k < B; k++) { const t = w[k] + 0.5 * (w[(k + 1) % B] + w[(k + B - 1) % B]); if (t > bw) { bw = t; best = k; } }
+  const avgV = vSum / n;
+  if (dark > n * 0.85) return { dark: true, level: avgV };
+  let r, g, b;
+  if (grey * 0.35 > bw) { r = gr; g = gg; b = gb; }                         // image surtout blanche / grise
+  else { const ks = [best, (best + 1) % B, (best + B - 1) % B]; const W = ks.reduce((a, k) => a + w[k], 0) || 1;
+    r = ks.reduce((a, k) => a + sr[k], 0) / W; g = ks.reduce((a, k) => a + sg[k], 0) / W; b = ks.reduce((a, k) => a + sb[k], 0) / W; }
+  const m = Math.max(r, g, b) || 1;                                       // couleur pleine : la luminosité suit le curseur Luminosité
+  return { dark: false, rgb: [r / m * 255, g / m * 255, b / m * 255], level: avgV };
+}
+function ambiGrab() {
+  if (IS_ANDROID) {
+    const st = AndroidScreen.state();
+    if (st !== 'on') return { state: st };
+    const f = AndroidScreen.frame(); if (!f) return null;
+    const [w, h, b64] = f.split(','), bin = atob(b64), px = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) px[i] = bin.charCodeAt(i);
+    return { px, n: +w * +h };
+  }
+  const v = ambi.video; if (!v || v.readyState < 2) return null;
+  const cv = ambi.cv || (ambi.cv = document.createElement('canvas')); cv.width = 32; cv.height = 18;
+  const cx = cv.getContext('2d', { willReadFrequently: true }); cx.drawImage(v, 0, 0, 32, 18);
+  const d = cx.getImageData(0, 0, 32, 18).data, px = new Uint8Array(32 * 18 * 3);
+  for (let i = 0, j = 0; i < d.length; i += 4) { px[j++] = d[i]; px[j++] = d[i + 1]; px[j++] = d[i + 2]; }
+  return { px, n: 32 * 18 };
+}
+function ambiTick() {
+  const g = ambiGrab();
+  if (g && g.state) {
+    if (g.state === 'denied' || g.state === 'error' || g.state === 'off') { if (ambi.wasOn || g.state !== 'off') return ambiStop(g.state === 'denied' ? 'capture refusée' : g.state === 'error' ? 'capture impossible' : 'capture arrêtée'); }
+    $('ambiStatus').textContent = g.state === 'asking' ? 'autorise la capture d\'écran…' : '';
+    return;
+  }
+  ambi.wasOn = true;
+  if ($('ambiStatus').textContent !== '🎬 en cours') $('ambiStatus').textContent = '🎬 en cours';
+  if (!g) return;
+  const res = dominantColor(g.px, g.n), mode = $('ambiDark').value;
+  let target;
+  if (res.dark) { if (mode === 'keep') return; target = mode === 'off' ? [0, 0, 0] : (ambi.cur ? ambi.cur.map(x => x * 0.08) : [8, 8, 8]); }
+  else target = res.rgb;
+  const a = 0.06 + (+$('ambiReact').value / 100) * 0.75;
+  ambi.cur = ambi.cur ? ambi.cur.map((x, i) => x + (target[i] - x) * a) : target.slice();
+  const rgb = ambi.cur.map(x => Math.round(Math.max(0, Math.min(255, x))));
+  $('ambiSwatch').style.background = `rgb(${rgb.join(',')})`;
+  const live = ambi.list.filter(d => ready(d) && !d.anim && !d.live && !d.diy && !d.nm && !d.fx);
+  if (!live.length) return ambiStop('une autre animation a repris les lampes');
+  const now = performance.now();
+  live.forEach(d => {
+    const id = d.device.id, last = ambi.lastSent[id];
+    const gap = d.proto.id === 'fairy' ? 300 : 120;                       // le rideau suit moins vite que les sticks
+    if (d.pending || (last && now - last.t < gap)) return;
+    if (last && Math.abs(last.c[0] - rgb[0]) + Math.abs(last.c[1] - rgb[1]) + Math.abs(last.c[2] - rgb[2]) < 9) return;
+    ambi.lastSent[id] = { t: now, c: rgb };
+    d.whiteMode = false;
+    send(d, colorFrame(d, rgb[0], rgb[1], rgb[2]), true);
+  });
+}
+async function ambiStart() {
+  const t = targets(); if (!t.length) return log('Aucun appareil prêt dans cet onglet.');
+  ambiStop();
+  if (IS_ANDROID) AndroidScreen.start();
+  else {
+    try { ambi.stream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 10 }, audio: false }); }
+    catch (e) { $('ambiStatus').textContent = 'capture annulée'; return; }
+    ambi.video = document.createElement('video'); ambi.video.muted = true; ambi.video.srcObject = ambi.stream; await ambi.video.play().catch(() => {});
+    ambi.stream.getVideoTracks()[0].addEventListener('ended', () => ambiStop('partage d\'écran arrêté'));
+  }
+  if (music.timer || devices.some(d => d.anim && d.anim.id === 'music')) musicStop();
+  t.forEach(d => {
+    d.anim = null; d.nm = null; d.fx = null; d.whiteMode = false; if (d.diy) diyStop(d);
+    if (d.live || d.liveVisual) { d.live = null; d.liveReady = null; d.liveVisual = null; }
+    if (d.proto.bright) send(d, d.proto.bright(state.bright), true);
+  });
+  nativeSel = null; markPlaying();
+  Object.assign(ambi, { on: true, list: t, cur: null, lastSent: {}, wasOn: false });
+  ambi.timer = setInterval(ambiTick, 100);
+  $('ambiStatus').textContent = '🎬 en cours'; $('ambiStart').classList.add('playing');
+  log(`🎬 Ambilight — ${target === '*' ? 'tout' : target} (${t.length} appareil${t.length > 1 ? 's' : ''})`);
+}
+function ambiStop(why) {
+  if (ambi.timer) clearInterval(ambi.timer);
+  if (IS_ANDROID && ambi.on) AndroidScreen.stop();
+  if (ambi.stream) ambi.stream.getTracks().forEach(tr => tr.stop());
+  const was = ambi.on;
+  Object.assign(ambi, { on: false, timer: null, stream: null, video: null, list: [] });
+  $('ambiStart').classList.remove('playing');
+  $('ambiStatus').textContent = typeof why === 'string' ? why : '';
+  if (was) log('■ Ambilight arrêté' + (typeof why === 'string' ? ' (' + why + ')' : ''));
+}
+$('ambiStart').onclick = ambiStart;
+$('ambiStop').onclick = () => ambiStop();
 $('mStop').onclick = () => musicStop(true);
 $('mRefresh').onclick = () => listSources(true);
 $('mDelay').oninput = e => { $('mDelayVal').textContent = e.target.value + ' ms'; mSave(); };
@@ -2396,7 +2540,7 @@ renderTargets();
 if (navigator.bluetooth) autoReconnect();
 window.__androidPermissionsChanged = () => { autoReconnect(); listSources(false); };
 if (IS_ANDROID) document.querySelectorAll('.pc-only').forEach(e => e.remove());
-log('Lampes — version 56' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
+log('Lampes — version 57' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
 </script>
 </body>
 </html>

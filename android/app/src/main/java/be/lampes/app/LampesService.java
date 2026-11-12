@@ -21,6 +21,7 @@ import android.os.PowerManager;
  */
 public class LampesService extends Service {
     static final String STOP = "be.lampes.app.STOP";
+    static final String CAPTURE = "be.lampes.app.CAPTURE";
     private static final String CHANNEL = "lampes";
     private PowerManager.WakeLock wake;
 
@@ -68,12 +69,20 @@ public class LampesService extends Service {
                 // le micro (analyse du son de Tidal) n'est autorisé en arrière-plan qu'avec ce type
                 if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED)
                     type |= ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE;
+                // ambilight : la capture d'écran exige ce type, déclaré avant d'ouvrir la capture
+                boolean capture = intent != null && CAPTURE.equals(intent.getAction());
+                if (capture || ScreenCapture.running()) type |= ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION;
                 startForeground(1, n, type);
             } else {
                 startForeground(1, n);
             }
         } catch (Exception e) {
             try { startForeground(1, n); } catch (Exception ignored) { stopSelf(); return START_NOT_STICKY; }
+        }
+        if (intent != null && CAPTURE.equals(intent.getAction())) {
+            Intent data = intent.getParcelableExtra("data");
+            int code = intent.getIntExtra("code", 0);
+            if (data != null) ScreenCapture.begin(this, code, data); else ScreenCapture.state = "error";
         }
         if (wake == null) {
             PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
