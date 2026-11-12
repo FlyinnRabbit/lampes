@@ -69,7 +69,7 @@
 </head>
 <body>
 <main>
-  <h1>💡 Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 55</span></h1>
+  <h1>💡 Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 56</span></h1>
   <p class="sub">Sticks, rideau et autres lampes LED Bluetooth, pilotés ensemble ou par groupe.</p>
 
   <div id="nobt" class="card warn hidden">
@@ -648,7 +648,7 @@ const PROTOCOLS = [
     still: new Set([2,3,4,5, 7,8,9,12, 18,19, 28, 33,35,36,37,38,39,40,41,42]),
     effectFrames(m, speed, bright) {
       const f = [fairy([0xaa,0x03,0x04,0x02, m & 0xff, ...be16(clamp(Math.round(bright/10),1,10)*100)])];
-      if (!this.still.has(m)) f.push(fairy([0xaa,0x0c,0x01, FAIRY_SCENE_SPEED]), fairy([0xaa,0x0c,0x00]));   // + relecture : le rideau répond avec sa vitesse   // animations intégrées : vitesse fixe calme (le curseur ne sert qu'aux feux d'artifice)
+      if (!this.still.has(m)) f.push(fairy([0xaa,0x0c,0x01, m === 32 ? 30 : FAIRY_SCENE_SPEED]), fairy([0xaa,0x0c,0x00]));   // + relecture : le rideau répond avec sa vitesse   // animations intégrées : vitesse fixe calme (le curseur ne sert qu'aux feux d'artifice)
       return f;
     },
     // [numéro, nom, catégorie] — catégories relevées sur le rideau
@@ -678,7 +678,7 @@ const PROTOCOLS = [
     })(),
   },
 ];
-const FAIRY_SCENE_SPEED = 10;   // vitesse fixe des animations intégrées (0–100) : calme
+const FAIRY_SCENE_SPEED = 10;   // vitesse fixe des animations intégrées (0–100) : calme ; Bière (32) validée à 30
 // La guirlande n'accepte V (luminosité) que par paliers de 100 (100…1000), S par paliers de 10
 function fairyV(v){ return v <= 0.001 ? 0 : clamp(Math.round(v*10),1,10)*100; }
 function fairyS(s){ return clamp(Math.round(s*100),0,100)*10; }
@@ -2396,7 +2396,7 @@ renderTargets();
 if (navigator.bluetooth) autoReconnect();
 window.__androidPermissionsChanged = () => { autoReconnect(); listSources(false); };
 if (IS_ANDROID) document.querySelectorAll('.pc-only').forEach(e => e.remove());
-log('Lampes — version 55' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
+log('Lampes — version 56' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
 </script>
 </body>
 </html>
