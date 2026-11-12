@@ -69,7 +69,7 @@
 </head>
 <body>
 <main>
-  <h1>💡 Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 50</span></h1>
+  <h1>💡 Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 51</span></h1>
   <p class="sub">Sticks, rideau et autres lampes LED Bluetooth, pilotés ensemble ou par groupe.</p>
 
   <div id="nobt" class="card warn hidden">
@@ -671,6 +671,9 @@ const PROTOCOLS = [
       out.push(['fwmix', 'Bouquet varié', FA, '🎆 Bouquet varié'], ['fwpeony', 'Pivoines', FA, '🌸 Pivoines'],
                ['fwring', 'Anneaux', FA, '⭕ Anneaux'], ['fwwillow', 'Saule doré', FA, '🌾 Saule doré'],
                ['fwcrackle', 'Crépitants', FA, '✨ Crépitants'], ['fwmulti', 'Multicolores', FA, '🌈 Multicolores']);
+      const RT = '🎮 Rétro';
+      out.push(['rtmatrix', 'Pluie Matrix', RT, '🟩 Pluie Matrix'], ['rtsnake', 'Serpent', RT, '🐍 Serpent'],
+               ['rtinv', 'Envahisseurs', RT, '👾 Envahisseurs'], ['rtblocks', 'Blocs qui tombent', RT, '🧱 Blocs qui tombent']);
       return out;
     })(),
   },
@@ -1269,7 +1272,8 @@ function fillNative() {
 function sendNative() {
   if (!nativeSel) return;
   const [pid, mv] = nativeSel.split(':');
-  const FW = { fwmix: 'mix', fwpeony: 'peony', fwring: 'ring', fwwillow: 'willow', fwcrackle: 'crackle', fwmulti: 'multi' };
+  const FW = { fwmix: 'mix', fwpeony: 'peony', fwring: 'ring', fwwillow: 'willow', fwcrackle: 'crackle', fwmulti: 'multi',
+               rtmatrix: 'matrix', rtsnake: 'snake', rtinv: 'inv', rtblocks: 'blocks' };
   if (pid === 'fairy' && FW[mv]) {                // feux d'artifice animés : vitesse = cadence du spectacle
     $('speed').closest('.row').classList.remove('hidden'); $('speedStill').classList.add('hidden');
     const curt = targets().filter(d => d.proto.id === 'fairy' && ready(d));
@@ -1942,7 +1946,131 @@ function fwFrame(d) {
   if (!d.fwAt || (now - d.fwAt >= interval && (d.livePending || 0) < 4)) { d.fwAt = now; fwStep(st, d.fwStyle || 'mix'); }
   return fwDraw(st);
 }
-const LIVE_ANIMS = { wheel: d => wheelDiscFrame(d), fire: d => fireFrame(d), fw: d => fwFrame(d), image: d => d.staticImg.slice() };
+// ------ Rétro : chaque pas ne change que quelques LED (le Bluetooth suit)
+const RT = {
+  matrix: {
+    init: () => ({ drops: [] }),
+    step(st) {
+      if (st.drops.length < 9 && Math.random() < 0.6) {
+        const free = [...Array(N).keys()].filter(c => !st.drops.some(d => d.c === c && d.y < 8));
+        if (free.length) st.drops.push({ c: fwPick(free), y: -1, len: 3 + Math.floor(Math.random() * 4) });
+      }
+      st.drops.forEach(d => d.y++);
+      st.drops = st.drops.filter(d => d.y - d.len < N);
+    },
+    draw(st, put) { for (const d of st.drops) for (let k = 0; k <= d.len; k++) put(d.y - k, d.c, k === 0 ? WHITE : hueByte(120)); },
+  },
+  snake: {
+    init() { const st = { body: [[10, 5], [10, 4], [10, 3]], dir: [0, 1] }; RT.snake.food(st); return st; },
+    food(st) { let f; do { f = [Math.floor(Math.random() * N), Math.floor(Math.random() * N)]; } while (st.body.some(b => b[0] === f[0] && b[1] === f[1])); st.food = f; },
+    step(st) {
+      const [hr, hc] = st.body[0], blocked = (r, c, body) => r < 0 || c < 0 || r >= N || c >= N || body.some(b => b[0] === r && b[1] === c);
+      const room = (r, c) => {                            // cases libres atteignables : évite de s'enfermer
+        const body = st.body.slice(0, -1), seen = new Set([r * N + c]), q = [[r, c]];
+        while (q.length && seen.size < st.body.length + 4) {
+          const [a, b] = q.pop();
+          for (const [dr, dc] of [[1,0],[-1,0],[0,1],[0,-1]]) { const k = (a + dr) * N + b + dc;
+            if (!seen.has(k) && !blocked(a + dr, b + dc, body)) { seen.add(k); q.push([a + dr, b + dc]); } }
+        }
+        return seen.size;
+      };
+      const opts = [[1,0],[-1,0],[0,1],[0,-1]].map(d => [d, hr + d[0], hc + d[1]])
+        .filter(([, r, c]) => !blocked(r, c, st.body.slice(0, -1)))
+        .map(([d, r, c]) => ({ d, r, c, room: room(r, c), dist: Math.abs(r - st.food[0]) + Math.abs(c - st.food[1]) + Math.random() * 0.5 }));
+      if (!opts.length) return Object.assign(st, RT.snake.init());
+      const safe = opts.filter(o => o.room >= st.body.length);
+      const o = (safe.length ? safe : opts).sort((a, b) => a.dist - b.dist)[0];
+      st.body.unshift([o.r, o.c]);
+      if (o.r === st.food[0] && o.c === st.food[1]) { if (st.body.length >= 45) return Object.assign(st, RT.snake.init()); RT.snake.food(st); }
+      else st.body.pop();
+    },
+    draw(st, put) { put(st.food[0], st.food[1], hueByte(0)); st.body.forEach(([r, c], i) => put(r, c, i ? hueByte(120) : hueByte(55))); },
+  },
+  inv: {
+    SPR: ['.#.#.', '#####', '#.#.#', '.#.#.'],          // envahisseur maison 5×4
+    init: () => ({ ox: 0, oy: 1, dx: 1, t: 0, alive: [1,1,1,1,1,1], ship: 9, shot: null, boom: [] }),
+    cells(st, i) { const r0 = st.oy + (i < 3 ? 0 : 5), c0 = st.ox + (i % 3) * 6, out = [];
+      RT.inv.SPR.forEach((row, r) => [...row].forEach((ch, c) => { if (ch === '#') out.push([r0 + r, c0 + c]); })); return out; },
+    step(st) {
+      st.t++; st.boom = st.boom.filter(b => --b.n > 0);
+      if (st.t % 3 === 0) {                                 // la formation avance de côté, descend au bord
+        if (st.ox + st.dx < 0 || st.ox + st.dx > 3) { st.dx = -st.dx; st.oy++; } else st.ox += st.dx;
+      }
+      const live = st.alive.map((a, i) => a && i).filter(i => i !== false);
+      if (!live.length || st.oy > 8) return Object.assign(st, RT.inv.init());
+      const target = st.ox + (live[0] % 3) * 6 + 2;
+      if (!st.shot) { if (st.ship !== target) st.ship += Math.sign(target - st.ship); else st.shot = [17, st.ship]; }
+      else {
+        st.shot[0] -= 2;
+        for (const i of live) if (RT.inv.cells(st, i).some(([r, c]) => c === st.shot[1] && (r === st.shot[0] || r === st.shot[0] + 1))) {
+          st.alive[i] = 0; st.boom.push({ cells: RT.inv.cells(st, i), n: 2 }); st.shot = null; break;
+        }
+        if (st.shot && st.shot[0] < 0) st.shot = null;
+      }
+    },
+    draw(st, put) {
+      st.alive.forEach((a, i) => { if (a) RT.inv.cells(st, i).forEach(([r, c]) => put(r, c, i < 3 ? hueByte(300) : hueByte(180))); });
+      st.boom.forEach(b => b.cells.forEach(([r, c], k) => { if (k % 2) put(r, c, hueByte(30)); }));
+      put(18, st.ship, hueByte(120)); [-1, 0, 1].forEach(k => put(19, st.ship + k, hueByte(120)));
+      if (st.shot) { put(st.shot[0], st.shot[1], WHITE); put(st.shot[0] + 1, st.shot[1], WHITE); }
+    },
+  },
+  blocks: {
+    P: [[[0,0],[0,1],[0,2],[0,3]], [[0,0],[0,1],[1,0],[1,1]], [[0,1],[1,0],[1,1],[1,2]], [[0,0],[1,0],[1,1],[1,2]],
+        [[0,2],[1,0],[1,1],[1,2]], [[0,1],[0,2],[1,0],[1,1]], [[0,0],[0,1],[1,1],[1,2]]],
+    HUE: [180, 50, 280, 225, 30, 120, 0],
+    W: 10, L: 5,                                            // puits de 10 colonnes, centré (colonnes 5 à 14)
+    init: () => ({ board: Array.from({ length: N }, () => new Array(10).fill(-1)), cur: null }),
+    rot: cells => { const r = cells.map(([a, b]) => [b, -a]), mr = Math.min(...r.map(x => x[0])), mc = Math.min(...r.map(x => x[1])); return r.map(([a, b]) => [a - mr, b - mc]); },
+    fits(st, cells, y, x) { return cells.every(([r, c]) => c + x >= 0 && c + x < 10 && r + y < N && (r + y < 0 || st.board[r + y][c + x] < 0)); },
+    spawn(st) {
+      const B = RT.blocks, k = Math.floor(Math.random() * 7); let best = null, cells = B.P[k];
+      for (let rot = 0; rot < 4; rot++, cells = B.rot(cells)) for (let x = 0; x < 10; x++) {
+        if (!B.fits(st, cells, 0, x)) continue;
+        let y = 0; while (B.fits(st, cells, y + 1, x)) y++;
+        const b = st.board.map(row => row.slice()); cells.forEach(([r, c]) => { b[r + y][c + x] = k; });
+        const full = b.filter(row => row.every(v => v >= 0)).length;
+        let holes = 0, height = 0, bump = 0, prevH = null;
+        for (let c = 0; c < 10; c++) {
+          let top = -1; for (let r = 0; r < N; r++) { if (b[r][c] >= 0) { if (top < 0) top = r; } else if (top >= 0) holes++; }
+          const h = top < 0 ? 0 : N - top; height += h; if (prevH !== null) bump += Math.abs(h - prevH); prevH = h;
+        }
+        const score = 0.76 * full - 0.51 * height - 0.36 * holes * 3 - 0.18 * bump + Math.random() * 0.01;   // joueur automatique classique
+        if (!best || score > best.score) best = { score, cells, x };
+      }
+      if (!best) return Object.assign(st, RT.blocks.init());
+      st.cur = { cells: best.cells, x: best.x, y: -2, k };
+    },
+    step(st) {
+      const B = RT.blocks;
+      if (!st.cur) return B.spawn(st);
+      if (B.fits(st, st.cur.cells, st.cur.y + 1, st.cur.x)) { st.cur.y++; return; }
+      if (st.cur.cells.some(([r]) => r + st.cur.y < 0)) return Object.assign(st, B.init());
+      st.cur.cells.forEach(([r, c]) => { st.board[r + st.cur.y][c + st.cur.x] = st.cur.k; });
+      st.board = st.board.filter(row => !row.every(v => v >= 0));
+      while (st.board.length < N) st.board.unshift(new Array(10).fill(-1));
+      st.cur = null;
+    },
+    draw(st, put) {
+      const B = RT.blocks;
+      for (let r = 0; r < N; r++) { put(r, B.L - 1, hueByte(225)); put(r, B.L + 10, hueByte(225)); }
+      st.board.forEach((row, r) => row.forEach((v, c) => { if (v >= 0) put(r, c + B.L, hueByte(B.HUE[v])); }));
+      if (st.cur) st.cur.cells.forEach(([r, c]) => put(r + st.cur.y, c + st.cur.x + B.L, hueByte(B.HUE[st.cur.k])));
+    },
+  },
+};
+function rtDraw(style, st) {
+  const img = new Array(N * N).fill(OFF);
+  RT[style].draw(st, (y, x, v) => { y = Math.round(y); x = Math.round(x); if (y >= 0 && y < N && x >= 0 && x < N) img[y * N + x] = v; });
+  return img;
+}
+function rtFrame(d) {
+  const style = d.fwStyle, now = performance.now(), interval = 200 - 1.6 * clamp(+$('speed').value || 50, 1, 100);
+  if (!d.fw) d.fw = RT[style].init();
+  if (!d.fwAt || (now - d.fwAt >= interval && (d.livePending || 0) < 4)) { d.fwAt = now; RT[style].step(d.fw); }
+  return rtDraw(style, d.fw);
+}
+const LIVE_ANIMS = { wheel: d => wheelDiscFrame(d), fire: d => fireFrame(d), fw: d => RT[d.fwStyle] ? rtFrame(d) : fwFrame(d), image: d => d.staticImg.slice() };
 function specFrame(d) {
   if (LIVE_ANIMS[d.liveVisual]) return LIVE_ANIMS[d.liveVisual](d);
   const now = performance.now(), due = now - +$('mDelay').value;   // même délai que les enceintes Bluetooth
@@ -2263,7 +2391,7 @@ renderTargets();
 if (navigator.bluetooth) autoReconnect();
 window.__androidPermissionsChanged = () => { autoReconnect(); listSources(false); };
 if (IS_ANDROID) document.querySelectorAll('.pc-only').forEach(e => e.remove());
-log('Lampes — version 50' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
+log('Lampes — version 51' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
 </script>
 </body>
 </html>
