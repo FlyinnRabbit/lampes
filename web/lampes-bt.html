@@ -69,7 +69,7 @@
 </head>
 <body>
 <main>
-  <h1>💡 Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 44</span></h1>
+  <h1>💡 Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 45</span></h1>
   <p class="sub">Sticks, rideau et autres lampes LED Bluetooth, pilotés ensemble ou par groupe.</p>
 
   <div id="nobt" class="card warn hidden">
@@ -660,7 +660,7 @@ const PROTOCOLS = [
       const out = cats.flatMap(([cat, name, list]) =>
         list.map((v, k) => [v, list.length > 1 ? `${name} ${k + 1}` : name, cat]));
       // dessiné par l'app (pas enregistré dans le rideau) : [code, nom, thème, libellé du bouton]
-      out.splice(out.findIndex(e => e[0] === 42) + 1, 0, ['be', 'Belgique sur fond blanc', '🏳️ Drapeaux', '🇧🇪']);
+      out.splice(out.findIndex(e => e[0] === 42) + 1, 0, ['be', 'Belgique sur fond blanc', '🏳️ Drapeaux', '🇧🇪'], ['rasta', 'Drapeau rasta', '🏳️ Drapeaux', '🟥🟨🟩 Rasta']);
       return out;
     })(),
   },
@@ -1258,7 +1258,7 @@ function fillNative() {
 function sendNative() {
   if (!nativeSel) return;
   const [pid, mv] = nativeSel.split(':');
-  const DRAWN = { be: 'beflag' };   // images dessinées par l'app
+  const DRAWN = { be: 'beflag', rasta: 'rasta' };   // images dessinées par l'app
   if (pid === 'fairy' && DRAWN[mv]) {
     $('speed').closest('.row').classList.add('hidden'); $('speedStill').classList.remove('hidden');
     const curt = targets().filter(d => d.proto.id === 'fairy' && ready(d));
@@ -1532,6 +1532,8 @@ function model(kind, t = 0) {
       if (vertical ? c < 2 : r < 2) img[i] = mine;
     }
   }
+  if (kind === 'rasta')                          // bandes horizontales rouge, jaune, vert
+    for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) img[r * N + c] = r < 7 ? hueByte(0) : r < 13 ? hueByte(50) : hueByte(120);
   if (kind === 'beflag') {                       // fond blanc, drapeau 18×12 centré : noir, jaune, rouge (6 colonnes chacun)
     img.fill(WHITE);
     for (let r = 4; r < 16; r++) for (let c = 1; c < 19; c++) img[r * N + c] = c < 7 ? OFF : c < 13 ? hueByte(50) : hueByte(0);
@@ -2170,7 +2172,7 @@ renderTargets();
 if (navigator.bluetooth) autoReconnect();
 window.__androidPermissionsChanged = () => { autoReconnect(); listSources(false); };
 if (IS_ANDROID) document.querySelectorAll('.pc-only').forEach(e => e.remove());
-log('Lampes — version 44' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
+log('Lampes — version 45' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
 </script>
 </body>
 </html>
