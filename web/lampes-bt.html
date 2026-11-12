@@ -67,7 +67,7 @@
 </head>
 <body>
 <main>
-  <h1>💡 Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 24</span></h1>
+  <h1>💡 Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 25</span></h1>
   <p class="sub">Sticks, rideau et autres lampes LED Bluetooth, pilotés ensemble ou par groupe.</p>
 
   <div id="nobt" class="card warn hidden">
@@ -169,6 +169,7 @@
         <label><input type="checkbox" id="diyFlipY"> Miroir haut/bas</label>
         <label><input type="checkbox" id="diySwap"> Pivoter</label>
       </div>
+      <div class="row"><label><input type="checkbox" id="liveOne"> Spectre en direct : une LED par paquet (si l'affichage est incomplet)</label></div>
       <div class="row"><button id="diyDiag">🔍 Diagnostic du rideau</button><button id="diyColorBack">Revenir en mode couleur</button></div>
     </details>
   </div>
@@ -234,11 +235,21 @@
     <div class="row hidden" id="mCurtainRow">
       <label class="lbl">Rideau</label>
       <select id="mCurtain" style="flex:1; min-width:220px">
-        <option value="4">📻 Spectre (barres façon radio)</option>
-        <option value="1">🔊 Énergie</option>
-        <option value="2">🥁 Rythme</option>
-        <option value="3">🌀 Défilement</option>
+        <option value="-1" selected>📺 Spectre du son de l'app (Tidal…) en direct</option>
+        <option value="4">📻 Spectre — micro du rideau</option>
+        <option value="1">🔊 Énergie — micro du rideau</option>
+        <option value="2">🥁 Rythme — micro du rideau</option>
+        <option value="3">🌀 Défilement — micro du rideau</option>
         <option value="0">🎨 Mêmes couleurs que les sticks</option>
+      </select>
+    </div>
+    <div class="row hidden" id="mSpecRow">
+      <label class="lbl">Style</label>
+      <select id="mSpecStyle" style="flex:1; min-width:220px">
+        <option value="radio">📻 Radio : vert → jaune → rouge</option>
+        <option value="rainbow">🌈 Arc-en-ciel (une couleur par colonne)</option>
+        <option value="mine">🎨 Couleur de la roue</option>
+        <option value="mirror">🪞 Miroir (barres depuis le centre)</option>
       </select>
     </div>
     <div class="row">
@@ -851,6 +862,7 @@ function renderTargets() {
   $('syncTitle').textContent = target === '*' ? 'Animations synchronisées'
     : 'Animations de la page' + (low === 'rideau' ? ' pour le rideau' : ' pour ' + target);
   $('mCurtainRow').classList.toggle('hidden', !t.some(d => d.proto.id === 'fairy'));
+  $('mSpecRow').classList.toggle('hidden', !t.some(d => d.proto.id === 'fairy') || +$('mCurtain').value !== -1);
   $('musicDesc').textContent = 'Les lampes ' + (target === '*' ? 'de tous les groupes' : 'de « ' + target + ' »') + ' réagissent à la musique.';
   $('syncDesc').textContent = target === '*'
     ? 'Jouées en même temps sur tous les appareils (sticks et rideau ensemble). Garde la page ouverte.'
@@ -868,7 +880,7 @@ function throttle(fn, ms=80) {
 }
 const nmRefresh = throttle(() => each(d => { if (d.nm) nmSend(d.nm.mode, [d], d.nm.sens); }), 400);
 const applyColor = throttle(() => each(d => {
-  if (d.diy) return;
+  if (d.diy || d.live) return;
   if (d.nm) { if (!$('nmAuto').checked) nmRefresh(); return; }
   if (d.anim) return;   // pendant une animation, elle reprend la couleur choisie au pas suivant
   d.whiteMode = false; d.fx = null;
@@ -885,7 +897,7 @@ const applyBright = throttle(() => each(d => {
 }), 100);
 
 $('on').onclick  = () => each(d => send(d, d.proto.power(true)));
-$('off').onclick = () => each(d => { d.anim = null; d.nm = null; send(d, d.proto.power(false)); markPlaying(); });
+$('off').onclick = () => each(d => { d.anim = null; d.nm = null; d.live = null; send(d, d.proto.power(false)); markPlaying(); });
 $('white').onclick = () => each(d => { d.anim = null; d.nm = null; d.fx = null; d.whiteMode = true; send(d, d.proto.white(clamp(2.55*state.bright,1,255))); markPlaying(); });
 /* ---------- Roue chromatique ---------- */
 const wheel = $('wheel'), wctx = wheel.getContext('2d'), W = wheel.width, R = W / 2 - 4;
@@ -1093,7 +1105,7 @@ function startAnim(id) {
   const p0 = clock.p;
   devices.forEach(d => { if (d.anim && d.anim.id === id) d.anim.p0 = p0; });
   nativeSel = null; fillNative();
-  t.forEach(d => { if (d.diy) diyStop(d); d.nm = null;
+  t.forEach(d => { if (d.diy) diyStop(d); d.nm = null; d.live = null;
     d.anim = { id, p0 }; d.fx = null; d.whiteMode = false; d.lastFrame = null;
     if (d.proto.bright) send(d, d.proto.bright(state.bright), true); });
   log(`▶ ${ANIM[id].name} — ${target === '*' ? 'tout' : target} (${t.length} appareil${t.length>1?'s':''})`);
@@ -1168,7 +1180,7 @@ $('speed').oninput = throttle(() => {
 /* ---------- Mode musique ---------- */
 const music = { ctx: null, stream: null, an: null, buf: [], beatAt: 0, hue: 0, avg: 0, level: 0, timer: null };
 const mSave = () => store.set('music', { src: $('mSrc').value, srcLabel: $('mSrc').selectedOptions[0]?.textContent,
-  mode: $('mMode').value, sens: $('mSens').value, delay: $('mDelay').value, curtain: $('mCurtain').value });
+  mode: $('mMode').value, sens: $('mSens').value, delay: $('mDelay').value, curtain: $('mCurtain').value, specStyle: $('mSpecStyle').value });
 async function listSources(askPermission) {
   const sel = $('mSrc'), saved = store.get('music', {});
   let devs = [];
@@ -1229,22 +1241,24 @@ async function musicEngine() {     // ouvre la source si besoin ; renvoie true s
 }
 async function musicStart() {
   const t = targets(); if (!t.length) return log('Aucun appareil prêt dans cet onglet.');
-  const onlyCurtains = +$('mCurtain').value && t.every(d => d.proto.id === 'fairy');
+  const cm = +$('mCurtain').value;
+  const onlyCurtains = cm > 0 && t.every(d => d.proto.id === 'fairy');
   if (!onlyCurtains && !await musicEngine()) return;
   const p0 = clock.p;
   nativeSel = null;
-  const cm = +$('mCurtain').value;
   const curtains = t.filter(d => d.proto.id === 'fairy');
   const others = cm ? t.filter(d => d.proto.id !== 'fairy') : t;
-  if (cm && curtains.length) {
+  if (cm > 0 && curtains.length) {
     nmSend(cm, curtains, +$('mSens').value);
     log(`📻 Rideau : ${$('mCurtain').selectedOptions[0].textContent} (il écoute les enceintes avec son micro)`);
   }
+  if (cm < 0 && curtains.length) liveStart(curtains);
   others.forEach(d => { d.anim = { id: 'music', p0 }; d.fx = null; d.lastFrame = null; });
   $('mStatus').textContent = onlyCurtains ? '♪ le rideau écoute avec son micro' : '♪ en cours'; markPlaying(); fillNative(); mSave();
 }
 function musicStop(userAsked) {
   devices.forEach(d => { if (d.anim && d.anim.id === 'music') d.anim = null; });
+  liveStop(userAsked === true);
   if (userAsked === true) {                    // bouton Arrêter : le rideau quitte aussi son mode musique
     devices.forEach(d => { if (d.nm && ready(d)) { d.nm = null; send(d, colorFrame(d, state.r, state.g, state.b)); } });
     document.querySelectorAll('[data-nm]').forEach(b => b.classList.remove('playing'));
@@ -1259,7 +1273,7 @@ function musicStop(userAsked) {
 }
 // Analyse ~33 fois/s : énergie par bande, détection des battements, couleur à jouer
 function musicTick() {
-  if (!devices.some(d => d.anim && d.anim.id === 'music') && !music.keep) return musicStop();
+  if (!devices.some(d => (d.anim && d.anim.id === 'music') || d.live) && !music.keep) return musicStop();
   let raw;
   if (music.phone) {
     raw = (AndroidAudio.bands() || '0,0,0').split(',').map(Number);
@@ -1300,6 +1314,10 @@ function musicTick() {
   }
   const rgb = hsv ? hsvToRgb(...hsv) : [bass, mid, high].map(x => Math.round(255 * Math.pow(x, 1.3)));
   music.buf.push({ t: now, rgb, hueShift: $('mMode').value === 'beat' });
+  if (devices.some(d => d.live)) {
+    music.spec = (music.spec || []).concat({ t: now, v: readSpectrum(N) });
+    while (music.spec.length > 40) music.spec.shift();
+  }
   while (music.buf.length > 40) music.buf.shift();
   drawMeter(bass, mid, high, flash > 0.6);
   drawTempo(now);
@@ -1335,7 +1353,8 @@ $('mStart').onclick = musicStart;
 $('mStop').onclick = () => musicStop(true);
 $('mRefresh').onclick = () => listSources(true);
 $('mDelay').oninput = e => { $('mDelayVal').textContent = e.target.value + ' ms'; mSave(); };
-['mSrc', 'mMode', 'mSens', 'mCurtain'].forEach(id => $(id).addEventListener('change', () => {
+$('mCurtain').addEventListener('change', () => renderTargets());
+['mSrc', 'mMode', 'mSens', 'mCurtain', 'mSpecStyle'].forEach(id => $(id).addEventListener('change', () => {
   mSave(); if (id === 'mSrc' && (music.stream || music.phone)) { musicStop(); log('Source changée : clique sur Démarrer.'); }
 }));
 {
@@ -1343,6 +1362,7 @@ $('mDelay').oninput = e => { $('mDelayVal').textContent = e.target.value + ' ms'
   if (st.mode) $('mMode').value = st.mode;
   if (st.sens) $('mSens').value = st.sens;
   if (st.curtain !== undefined) $('mCurtain').value = st.curtain;
+  if (st.specStyle) $('mSpecStyle').value = st.specStyle;
   if (st.delay) { $('mDelay').value = st.delay; $('mDelayVal').textContent = st.delay + ' ms'; }
   if (navigator.mediaDevices) listSources(false);
 }
@@ -1532,7 +1552,7 @@ async function diyRun(kind) {
   const animated = kind === 'clock' || kind === 'spin';
   const token = {};
   tempoFollowOff();
-  list.forEach(d => { d.anim = null; d.nm = null; d.diy = token; });
+  list.forEach(d => { d.anim = null; d.nm = null; d.live = null; d.diy = token; });
   markPlaying();
   let t = 0;
   do {
@@ -1604,13 +1624,102 @@ $('diyColorBack').onclick = () => diyTargets().forEach(d => { diyStop(d); send(d
   cv.addEventListener('contextmenu', e => e.preventDefault());
   cv.addEventListener('pointerdown', e => { cv.setPointerCapture(e.pointerId); paint(e); });
   cv.addEventListener('pointermove', e => { if (cv.hasPointerCapture(e.pointerId)) paint(e); });
-  ['diyFlipX', 'diyFlipY', 'diySwap', 'tempoBeats', 'tempoDir', 'tempoCal'].forEach(id => {
+  ['diyFlipX', 'diyFlipY', 'diySwap', 'tempoBeats', 'tempoDir', 'tempoCal', 'liveOne'].forEach(id => {
     const el = $(id), v = store.get('diy4_' + id);
     if (v !== undefined && v !== null) { if (el.type === 'checkbox') el.checked = v; else el.value = v; }
     el.addEventListener('change', () => store.set('diy4_' + id, el.type === 'checkbox' ? el.checked : el.value));
   });
   drawDiy(); tempoInfo();
   setInterval(() => { if (!$('diyCard').classList.contains('hidden')) tempoInfo(); }, 1000);
+}
+
+/* ---------- Spectre en direct sur le rideau (son de l'app) ----------
+   Commande « pixel » D1 (notes de github.com/yamatt/curtains) : AA D1 <long> [index_hi, index_lo, couleur]…
+   Après « mode panneau » D0(0,100,100,3) puis D0(…,0), chaque D1 allume des LED immédiatement.
+   On ne renvoie que les LED qui changent d'une image à l'autre. */
+function readSpectrum(n) {
+  if (music.phone) {
+    const v = (AndroidAudio.spectrum(n) || '').split(',').map(Number);
+    return v.length === n ? v : new Array(n).fill(0);
+  }
+  if (!music.an) return new Array(n).fill(0);
+  const an = music.an, f = new Uint8Array(an.frequencyBinCount); an.getByteFrequencyData(f);
+  const hz = music.ctx.sampleRate / an.fftSize, out = [];
+  for (let i = 0; i < n; i++) {
+    const f1 = 40 * Math.pow(300, i / n), f2 = 40 * Math.pow(300, (i + 1) / n);
+    let s = 0, c = 0;
+    for (let k = Math.max(1, Math.floor(f1 / hz)); k <= Math.ceil(f2 / hz); k++) { s += f[k]; c++; }
+    out.push(c ? s / c / 255 : 0);
+  }
+  return out;
+}
+function specFrame(d) {
+  const due = performance.now() - +$('mDelay').value;          // même délai que les enceintes Bluetooth
+  let e = null; for (const x of music.spec || []) { if (x.t <= due) e = x; else break; }
+  const raw = e ? e.v : new Array(N).fill(0);
+  const gain = 0.8 + (+$('mSens').value / 100) * 3.2, style = $('mSpecStyle').value;
+  d.liveH = d.liveH || new Array(N).fill(0); d.livePk = d.livePk || new Array(N).fill(0);
+  const img = new Array(N * N).fill(OFF), mine = rgbToByte(state.r, state.g, state.b);
+  for (let c = 0; c < N; c++) {
+    const target = Math.min(N, Math.pow(Math.min(1, raw[c] * gain), 0.85) * N);
+    d.liveH[c] = target > d.liveH[c] ? target : Math.max(target, d.liveH[c] - 1.2);   // monte vite, retombe doucement
+    d.livePk[c] = Math.max(d.liveH[c], d.livePk[c] - 0.35);                              // repère de crête
+    const h = Math.round(d.liveH[c]), pk = Math.round(d.livePk[c]);
+    for (let k = 0; k < h; k++) {
+      const frac = k / (N - 1);
+      const col = style === 'rainbow' ? hueByte(c * 18) : style === 'mine' ? mine
+                : hueByte(120 - 120 * frac);                                              // vert → jaune → rouge
+      if (style === 'mirror') { const half = Math.ceil(h / 2), top = 10 - half; for (let r = top; r < top + h && r < N; r++) img[r * N + c] = hueByte(120 - 120 * Math.abs(r - 9.5) / 10); break; }
+      img[(N - 1 - k) * N + c] = col;
+    }
+    if (style !== 'mirror' && pk > h && pk <= N) img[(N - pk) * N + c] = WHITE;
+  }
+  return img;
+}
+async function liveSendFrame(d) {
+  const img = specFrame(d), prev = d.liveImg, changes = [];
+  for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
+    const i = r * N + c; if (img[i] !== prev[i]) changes.push([devIndex(r, c), img[i]]);
+  }
+  if (!changes.length) return;
+  const room = Math.max(1, Math.min(79, Math.floor(((d.device.gatt.mtu || 23) - 3 - 4) / 3)));
+  const per = $('liveOne').checked ? 1 : room;
+  for (let i = 0; i < changes.length; i += per) {
+    const part = changes.slice(i, i + per);
+    await writeRetry(d.char, new Uint8Array(fairy([0xaa, 0xd1, 3 * part.length, ...part.flatMap(([x, col]) => [x >> 8, x & 0xff, col])])), 'noresp');
+  }
+  d.liveImg = img;
+}
+let liveTimer = null;
+function liveStart(list) {
+  list.forEach(d => {
+    d.anim = null; d.nm = null; if (d.diy) diyStop(d);
+    const token = d.live = {};
+    d.liveImg = new Array(N * N).fill(OFF); d.liveH = null; d.livePk = null;
+    exclusive(d, async () => {                                   // passe en mode panneau, écran vide
+      const w = b => writeRetry(d.char, new Uint8Array(b), 'noresp');
+      await w(fairy([0xaa, 0x02, 0x01, 0x01])); await sleep(100);
+      await w(d0fixed(3)); await sleep(20);
+      await w(d0fixed(0)); await sleep(250);
+      d.liveReady = token;
+    }).catch(e => log('✗ Spectre : ' + e.message));
+  });
+  log(`📺 Rideau : spectre en direct du son de l'app (${$('mSpecStyle').selectedOptions[0].textContent})`);
+  if (!liveTimer) liveTimer = setInterval(() => {
+    devices.forEach(d => {
+      if (!d.live || d.liveReady !== d.live || d.liveBusy || !ready(d)) return;
+      d.liveBusy = true;
+      exclusive(d, () => liveSendFrame(d)).catch(e => log('✗ Spectre : ' + e.message)).finally(() => { d.liveBusy = false; });
+    });
+  }, 50);
+}
+function liveStop(restore) {
+  devices.forEach(d => {
+    if (!d.live) return;
+    d.live = null; d.liveReady = null;
+    if (restore && ready(d)) send(d, colorFrame(d, state.r, state.g, state.b));
+  });
+  if (liveTimer && !devices.some(d => d.live)) { clearInterval(liveTimer); liveTimer = null; }
 }
 
 /* ---------- Musique intégrée du rideau (micro du contrôleur) ----------
@@ -1626,7 +1735,7 @@ function nmSend(mode, only, sens) {
   const auto = $('nmAuto').checked || mode === 1 ? 1 : 0;
   const pkt = fairy([0xaa, 0x03, 0x09, 0x03, (mode << 4) | auto, sens || +$('nmSens').value,
     ...be16(clamp(state.bright, 1, 100) * 10), ...be16(Math.round(h * 360) % 360), ...be16(Math.round(s * 1000))]);
-  list.forEach(d => { d.anim = null; d.fx = null; if (d.diy) diyStop(d); d.nm = { mode, sens: sens || +$('nmSens').value }; send(d, pkt); });
+  list.forEach(d => { d.anim = null; d.fx = null; d.live = null; if (d.diy) diyStop(d); d.nm = { mode, sens: sens || +$('nmSens').value }; send(d, pkt); });
   document.querySelectorAll('[data-nm]').forEach(b => b.classList.toggle('playing', +b.dataset.nm === mode));
   markPlaying();
   // vérification : le rideau confirme-t-il le mode musique ?
@@ -1695,7 +1804,7 @@ renderTargets();
 if (navigator.bluetooth) autoReconnect();
 window.__androidPermissionsChanged = () => { autoReconnect(); listSources(false); };
 if (IS_ANDROID) document.querySelectorAll('.pc-only').forEach(e => e.remove());
-log('Lampes — version 24' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
+log('Lampes — version 25' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
 </script>
 </body>
 </html>

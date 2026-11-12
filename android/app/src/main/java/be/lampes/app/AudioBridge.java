@@ -49,6 +49,27 @@ public class AudioBridge {
         }
     }
 
+    /** n bandes réparties de 40 Hz à 12 kHz (échelle logarithmique, comme un égaliseur), "v1,v2,…" de 0 à 1. */
+    @JavascriptInterface
+    public synchronized String spectrum(int n) {
+        if (vis == null || n < 1) return "";
+        try {
+            if (vis.getFft(fft) != Visualizer.SUCCESS) return "";
+            double hzPerBin = vis.getSamplingRate() / 1000.0 / fft.length;
+            double lo = 40, hi = 12000;
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < n; i++) {
+                double f1 = lo * Math.pow(hi / lo, (double) i / n);
+                double f2 = lo * Math.pow(hi / lo, (double) (i + 1) / n);
+                if (i > 0) sb.append(',');
+                sb.append(String.format(Locale.US, "%.3f", band(f1, f2, hzPerBin)));
+            }
+            return sb.toString();
+        } catch (Throwable e) {
+            return "";
+        }
+    }
+
     // moyenne des amplitudes entre deux fréquences ; format Visualizer : [DC, Nyquist, re1, im1, re2, im2, …]
     private double band(double from, double to, double hzPerBin) {
         int half = fft.length / 2;
