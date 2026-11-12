@@ -67,7 +67,7 @@
 </head>
 <body>
 <main>
-  <h1>💡 Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 25</span></h1>
+  <h1>💡 Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 26</span></h1>
   <p class="sub">Sticks, rideau et autres lampes LED Bluetooth, pilotés ensemble ou par groupe.</p>
 
   <div id="nobt" class="card warn hidden">
@@ -169,7 +169,7 @@
         <label><input type="checkbox" id="diyFlipY"> Miroir haut/bas</label>
         <label><input type="checkbox" id="diySwap"> Pivoter</label>
       </div>
-      <div class="row"><label><input type="checkbox" id="liveOne"> Spectre en direct : une LED par paquet (si l'affichage est incomplet)</label></div>
+      <div class="row"><label><input type="checkbox" id="liveMulti"> Spectre en direct : plusieurs LED par paquet (plus rapide, à essayer)</label></div>
       <div class="row"><button id="diyDiag">🔍 Diagnostic du rideau</button><button id="diyColorBack">Revenir en mode couleur</button></div>
     </details>
   </div>
@@ -1440,7 +1440,8 @@ async function listen(d) {
     await ch.startNotifications();
     ch.addEventListener('characteristicvaluechanged', ev => {
       const b = new Uint8Array(ev.target.value.buffer);
-      log(`← rideau : ${hex(b.slice(0, 12))}${b.length > 12 ? ' …' : ''}`);
+      if (b[1] !== 0xd1 || (d.d1acks = (d.d1acks || 0) + 1) <= 3)             // pas une ligne par LED
+        log(`← rideau : ${hex(b.slice(0, 12))}${b.length > 12 ? ' …' : ''}${b[1] === 0xd1 && d.d1acks === 3 ? '  (réponses suivantes masquées)' : ''}`);
       if (d.ackWait && b[0] === 0xaa && b[1] === d.ackWait.cmd) { const w = d.ackWait; d.ackWait = null; w.res(true); }
       if (b[0] === 0xaa && b[1] === 0x01 && b.length >= 9) {                 // état du rideau
         const q = b.slice(3, -1), modes = { 1: 'couleur fixe', 2: 'animation intégrée', 3: 'musique' };
@@ -1624,7 +1625,7 @@ $('diyColorBack').onclick = () => diyTargets().forEach(d => { diyStop(d); send(d
   cv.addEventListener('contextmenu', e => e.preventDefault());
   cv.addEventListener('pointerdown', e => { cv.setPointerCapture(e.pointerId); paint(e); });
   cv.addEventListener('pointermove', e => { if (cv.hasPointerCapture(e.pointerId)) paint(e); });
-  ['diyFlipX', 'diyFlipY', 'diySwap', 'tempoBeats', 'tempoDir', 'tempoCal', 'liveOne'].forEach(id => {
+  ['diyFlipX', 'diyFlipY', 'diySwap', 'tempoBeats', 'tempoDir', 'tempoCal', 'liveMulti'].forEach(id => {
     const el = $(id), v = store.get('diy4_' + id);
     if (v !== undefined && v !== null) { if (el.type === 'checkbox') el.checked = v; else el.value = v; }
     el.addEventListener('change', () => store.set('diy4_' + id, el.type === 'checkbox' ? el.checked : el.value));
@@ -1683,10 +1684,12 @@ async function liveSendFrame(d) {
   }
   if (!changes.length) return;
   const room = Math.max(1, Math.min(79, Math.floor(((d.device.gatt.mtu || 23) - 3 - 4) / 3)));
-  const per = $('liveOne').checked ? 1 : room;
+  const per = $('liveMulti').checked ? room : 1;               // documenté : une LED par paquet
   for (let i = 0; i < changes.length; i += per) {
     const part = changes.slice(i, i + per);
-    await writeRetry(d.char, new Uint8Array(fairy([0xaa, 0xd1, 3 * part.length, ...part.flatMap(([x, col]) => [x >> 8, x & 0xff, col])])), 'noresp');
+    const pkt = fairy([0xaa, 0xd1, 3 * part.length, ...part.flatMap(([x, col]) => [x >> 8, x & 0xff, col])]);
+    if ((d.liveLogged = (d.liveLogged || 0) + 1) <= 3) log(`→ pixel : ${hex(pkt)}`);
+    await writeRetry(d.char, new Uint8Array(pkt), 'noresp');
   }
   d.liveImg = img;
 }
@@ -1698,9 +1701,18 @@ function liveStart(list) {
     d.liveImg = new Array(N * N).fill(OFF); d.liveH = null; d.livePk = null;
     exclusive(d, async () => {                                   // passe en mode panneau, écran vide
       const w = b => writeRetry(d.char, new Uint8Array(b), 'noresp');
+      await listen(d);
+      log('→ passage en mode panneau (D0 03 puis D0 00)');
       await w(fairy([0xaa, 0x02, 0x01, 0x01])); await sleep(100);
       await w(d0fixed(3)); await sleep(20);
       await w(d0fixed(0)); await sleep(250);
+      // test visible : les 4 coins en blanc pendant 1 s
+      log('Test : les 4 coins du rideau doivent s\'allumer en blanc 1 seconde.');
+      const corners = [0, 19, 380, 399];
+      for (const x of corners) { await w(fairy([0xaa, 0xd1, 0x03, x >> 8, x & 0xff, WHITE])); await sleep(30); }
+      await sleep(1000);
+      for (const x of corners) { await w(fairy([0xaa, 0xd1, 0x03, x >> 8, x & 0xff, OFF])); await sleep(30); }
+      d.liveLogged = 0;
       d.liveReady = token;
     }).catch(e => log('✗ Spectre : ' + e.message));
   });
@@ -1804,7 +1816,7 @@ renderTargets();
 if (navigator.bluetooth) autoReconnect();
 window.__androidPermissionsChanged = () => { autoReconnect(); listSources(false); };
 if (IS_ANDROID) document.querySelectorAll('.pc-only').forEach(e => e.remove());
-log('Lampes — version 25' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
+log('Lampes — version 26' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
 </script>
 </body>
 </html>
