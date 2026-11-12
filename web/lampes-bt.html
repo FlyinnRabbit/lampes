@@ -69,7 +69,7 @@
 </head>
 <body>
 <main>
-  <h1>💡 Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 34</span></h1>
+  <h1>💡 Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 36</span></h1>
   <p class="sub">Sticks, rideau et autres lampes LED Bluetooth, pilotés ensemble ou par groupe.</p>
 
   <div id="nobt" class="card warn hidden">
@@ -1182,7 +1182,7 @@ setInterval(() => {
   } else if (spinPos) { spinPos = null; clockHue = h; drawWheel(); }
   else if (h !== clockHue) { clockHue = h; drawWheel(); }
   devices.forEach((d, k) => {
-    if (!d.anim || d.diy || !ready(d) || d.pending > 0) return;   // on n'empile pas les envois
+    if (!d.anim || d.diy || d.live || !ready(d) || d.pending > 0) return;   // on n'empile pas les envois
     if (now < (d.nextAt || 0)) return;                   // respecte la cadence max de la lampe
     const rgb = ANIM[d.anim.id].fn(clock.p - d.anim.p0, k).map(x => clamp(x, 0, 255));
     const frame = colorFrame(d, ...rgb);
@@ -1213,10 +1213,15 @@ function startAnim(id, list) {
   t.forEach(d => { if (d.diy) diyStop(d); d.nm = null; d.live = null;
     d.anim = { id, p0 }; d.fx = null; d.whiteMode = false; d.lastFrame = null;
     if (d.proto.bright) send(d, d.proto.bright(state.bright), true); });
+  if (LIVE_ANIMS[id]) {                                 // rideau : dessiné pixel par pixel (roue en disque, vrai feu)
+    const curt = t.filter(d => d.proto.id === 'fairy' && ready(d));
+    curt.forEach(d => { d.liveVisual = id; d.heat = null; });
+    if (curt.length) liveStart(curt);
+  }
   log(`▶ ${ANIM[id].name} — ${list ? 'scène' : target === '*' ? 'tout' : target} (${t.length} appareil${t.length>1?'s':''})`);
   markPlaying();
 }
-function stopAnim() { each(d => { d.anim = null; }); log('■ Animations arrêtées — ' + (target === '*' ? 'tout' : target)); markPlaying(); }
+function stopAnim() { each(d => { d.anim = null; if (d.liveVisual) { d.live = null; d.liveVisual = null; } }); log('■ Animations arrêtées — ' + (target === '*' ? 'tout' : target)); markPlaying(); }
 function markPlaying() {
   const playing = new Set(targets().filter(d => d.anim).map(d => d.anim.id));
   document.querySelectorAll('#fxgrid button').forEach(b => b.classList.toggle('playing', playing.has(b.dataset.id)));
@@ -1358,7 +1363,7 @@ async function musicStart() {
     nmSend(cm, curtains, +$('mSens').value);
     log(`📻 Rideau : ${$('mCurtain').selectedOptions[0].textContent} (il écoute les enceintes avec son micro)`);
   }
-  if (cm < 0 && curtains.length) liveStart(curtains);
+  if (cm < 0 && curtains.length) { curtains.forEach(d => d.liveVisual = null); liveStart(curtains); }
   others.forEach(d => { d.anim = { id: 'music', p0 }; d.fx = null; d.lastFrame = null; });
   $('mStatus').textContent = onlyCurtains ? '♪ le rideau écoute avec son micro' : '♪ en cours'; markPlaying(); fillNative(); mSave();
 }
@@ -1770,7 +1775,50 @@ function readSpectrum(n) {
   }
   return out;
 }
+function wheelDiscFrame(d) {
+  const img = new Array(N * N).fill(OFF);
+  const [h0] = rgbToHsv(state.r, state.g, state.b);
+  const p = d.anim ? clock.p - d.anim.p0 : 0;
+  const multi = $('liveMulti').checked, step = multi ? 10 : 30;          // sans paquets groupés : moins de nuances, moins de LED à changer
+  const rot = (h0 + p / 14) * 360;                                       // même tour que la couleur des sticks
+  for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
+    const dist = Math.hypot(c + .5 - N / 2, r + .5 - N / 2);
+    if (dist > N / 2) continue;
+    if (dist < 1.5) { img[r * N + c] = WHITE; continue; }
+    const ang = Math.atan2(c + .5 - N / 2, -(r + .5 - N / 2)) * 180 / Math.PI;   // 0° en haut, sens horaire
+    img[r * N + c] = hueByte(Math.floor((ang + rot) / step) * step);
+  }
+  return img;
+}
+// Feu de camp : chaleur qui monte depuis les braises (algorithme « feu » classique), refroidie vers le haut et sur les côtés
+function fireFrame(d) {
+  const now = performance.now(), interval = 220 - +$('anSpeed').value * 1.6;   // vitesse des flammes : curseur Vitesse
+  if (!d.heat) d.heat = new Float32Array(N * N);
+  if (!d.fireAt || now - d.fireAt >= interval) {
+    d.fireAt = now;
+    const H = d.heat, cx = (N - 1) / 2;
+    for (let c = 0; c < N; c++) {                       // braises : plus chaudes au centre, qui crépitent
+      const centre = 1 - Math.abs(c - cx) / (N / 2);
+      H[(N - 1) * N + c] = Math.random() < 0.15 + 0.75 * centre ? 0.55 + 0.45 * Math.random() * (0.4 + 0.6 * centre) : 0.1;
+    }
+    for (let r = 0; r < N - 1; r++) for (let c = 0; c < N; c++) {
+      const below = (rr, cc) => H[Math.min(N - 1, rr) * N + Math.max(0, Math.min(N - 1, cc))];
+      const drift = Math.random() < 0.5 ? -1 : 1;     // les flammes ondulent sur les côtés
+      const avg = (below(r + 1, c) * 2 + below(r + 1, c + drift) + below(r + 2, c)) / 4;
+      const edge = Math.abs(c - cx) / (N / 2);
+      H[r * N + c] = Math.max(0, avg - (0.02 + 0.05 * Math.random() + 0.06 * edge * edge + (N - r) * 0.0015));
+    }
+  }
+  const img = new Array(N * N).fill(OFF);
+  for (let i = 0; i < N * N; i++) {
+    const h = d.heat[i];
+    img[i] = h < 0.14 ? OFF : h < 0.32 ? hueByte(0) : h < 0.5 ? hueByte(14) : h < 0.68 ? hueByte(28) : hueByte(46);
+  }
+  return img;
+}
+const LIVE_ANIMS = { wheel: d => wheelDiscFrame(d), fire: d => fireFrame(d) };
 function specFrame(d) {
+  if (LIVE_ANIMS[d.liveVisual]) return LIVE_ANIMS[d.liveVisual](d);
   const now = performance.now(), due = now - +$('mDelay').value;   // même délai que les enceintes Bluetooth
   let e = null; for (const x of music.spec || []) { if (x.t <= due) e = x; else break; }
   const raw = e ? e.v : new Array(N).fill(0);
@@ -1876,7 +1924,8 @@ function liveStart(list) {
     if (d.live && d.liveReady === d.live && d.device.gatt.connected) {   // déjà en mode panneau : on enchaîne sans remise à zéro
       d.liveH = d.livePk = null; d.drops = []; return;
     }
-    d.anim = null; d.nm = null; if (d.diy) diyStop(d);
+    if (!d.liveVisual) d.anim = null;                  // disque / feu : l'animation garde son horloge
+    d.nm = null; if (d.diy) diyStop(d);
     const token = d.live = {};
     d.liveImg = new Array(N * N).fill(OFF); d.liveH = null; d.livePk = null;
     exclusive(d, async () => {                                   // passe en mode panneau, écran vide
@@ -1898,7 +1947,9 @@ function liveStart(list) {
       d.liveReady = token;
     }).catch(e => log('✗ Spectre : ' + e.message));
   });
-  log(`📺 Rideau : spectre en direct du son de l'app (${$('mSpecStyle').selectedOptions[0].textContent})`);
+  log(list.some(d => d.liveVisual === 'wheel') ? '🎨 Rideau : roue chromatique en disque'
+      : list.some(d => d.liveVisual === 'fire') ? '🔥 Rideau : feu de camp avec flammes animées'
+      : `📺 Rideau : spectre en direct du son de l'app (${$('mSpecStyle').selectedOptions[0].textContent})`);
   if (!liveTimer) liveTimer = setInterval(() => {
     devices.forEach(d => {
       if (!d.live || d.liveReady !== d.live || d.liveBusy || !ready(d)) return;
@@ -2080,7 +2131,7 @@ renderTargets();
 if (navigator.bluetooth) autoReconnect();
 window.__androidPermissionsChanged = () => { autoReconnect(); listSources(false); };
 if (IS_ANDROID) document.querySelectorAll('.pc-only').forEach(e => e.remove());
-log('Lampes — version 34' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
+log('Lampes — version 36' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
 </script>
 </body>
 </html>
