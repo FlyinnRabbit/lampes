@@ -1,0 +1,41 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'be.lampes.app'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'be.lampes.app'
+        minSdk 26
+        targetSdk 34
+        versionCode (System.getenv('GITHUB_RUN_NUMBER') ?: '1') as int
+        versionName "18." + (System.getenv('GITHUB_RUN_NUMBER') ?: '0')
+    }
+
+    // Clé fixe : chaque nouvel APK s'installe par-dessus l'ancien sans perdre les réglages
+    signingConfigs {
+        lampes {
+            storeFile file('lampes.keystore')
+            storePassword 'lampes123'
+            keyAlias 'lampes'
+            keyPassword 'lampes123'
+        }
+    }
+    buildTypes {
+        debug { signingConfig signingConfigs.lampes }
+        release {
+            signingConfig signingConfigs.lampes
+            minifyEnabled false
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation 'androidx.webkit:webkit:1.11.0'
+}

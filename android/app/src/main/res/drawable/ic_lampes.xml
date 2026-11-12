@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Icône : ampoule jaune sur fond sombre -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path android:fillColor="#111318" android:pathData="M0,0h108v108h-108z" />
+    <path android:fillColor="#33FFC828" android:pathData="M54,18a26,26 0,1 1,0 52a26,26 0,1 1,0 -52z" />
+    <path android:fillColor="#FFC428" android:pathData="M54,28a16,16 0,0 1,9 29.2l-1,6.8h-16l-1,-6.8a16,16 0,0 1,9 -29.2z" />
+    <path android:fillColor="#96A0AF" android:pathData="M46,66h16v6h-16z" />
+    <path android:fillColor="#6E7682" android:pathData="M48,74h12v5h-12z" />
+</vector>

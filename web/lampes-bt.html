@@ -1,0 +1,1581 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lampes</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E💡%3C/text%3E%3C/svg%3E">
+<meta name="theme-color" content="#111318">
+<style>
+  :root { --bg:#111318; --card:#1b1e26; --line:#2b2f3a; --txt:#e8eaf0; --mut:#8b91a1; --acc:#7c9cff; --ok:#3ecf8e; --err:#ff6b6b; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--txt); }
+  main { max-width:780px; margin:0 auto; padding:20px 16px 60px; }
+  h1 { font-size:22px; margin:0 0 4px; }
+  h2 { font-size:15px; margin:0 0 12px; color:var(--mut); font-weight:600; text-transform:uppercase; letter-spacing:.04em; }
+  .sub { color:var(--mut); margin:0 0 18px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px; margin-bottom:14px; }
+  button, select, input[type=text] { font:inherit; color:var(--txt); background:#252a35; border:1px solid var(--line); border-radius:10px; padding:9px 14px; }
+  button { cursor:pointer; }
+  button:hover { border-color:var(--acc); }
+  button.primary, button.sel { background:var(--acc); color:#0b0e17; border-color:var(--acc); font-weight:600; }
+  button.playing { border-color:var(--ok); box-shadow:0 0 0 1px var(--ok) inset; }
+  button:disabled { opacity:.4; cursor:default; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .row + .row { margin-top:12px; }
+  label.lbl { color:var(--mut); min-width:90px; }
+  input[type=range] { flex:1; min-width:160px; accent-color:var(--acc); }
+  input[type=color] { width:64px; height:44px; border:none; background:none; padding:0; cursor:pointer; }
+  .sw { width:36px; height:36px; border-radius:50%; border:2px solid var(--line); padding:0; }
+  .dev { display:flex; gap:10px; align-items:center; flex-wrap:wrap; padding:10px 0; border-top:1px solid var(--line); }
+  .dev:first-child { border-top:none; }
+  .dev input[type=text] { width:120px; padding:7px 10px; }
+  .dot { width:9px; height:9px; border-radius:50%; background:var(--ok); }
+  .dot.off { background:var(--err); }
+  .name { font-weight:600; flex:1; min-width:110px; }
+  .muted { color:var(--mut); font-size:13px; }
+  #targets { position:sticky; top:0; z-index:5; background:var(--bg); padding:10px 0; margin-bottom:4px; }
+  .fxgrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:8px; }
+  .fxgrid h3 { grid-column:1/-1; margin:8px 0 0; font-size:13px; color:var(--mut); font-weight:600; }
+  .fxgrid button { text-align:left; padding:8px 12px; }
+  .catrow { display:flex; align-items:center; gap:12px; padding:10px 0; border-top:1px solid var(--line); flex-wrap:wrap; }
+  @media (max-width: 520px) { .catrow .lab { width: 100%; } main { padding: 14px 10px 40px; } }
+  .catrow:first-child { border-top:none; padding-top:0; }
+  .catrow .lab { width:200px; font-weight:600; }
+  .catrow .chips { display:flex; gap:8px; flex-wrap:wrap; }
+  .catrow .chips { gap:6px; }
+  .catrow .chips button { min-width:42px; padding:8px 10px; text-align:center; }
+  #fxgrid .catrow .chips { flex:1; }
+  #fxgrid .catrow .chips button { min-width:0; padding:8px 12px; }
+  #fxgrid .catrow .chips button::first-letter { text-transform:uppercase; }
+  .fxgrid.compact { grid-template-columns:repeat(auto-fill,minmax(64px,1fr)); }
+  .fxgrid.compact button { text-align:center; padding:8px 4px; }
+  #log { font:12px/1.5 ui-monospace,Menlo,Consolas,monospace; background:#0c0e13; border-radius:10px; padding:10px; height:170px; overflow:auto; white-space:pre-wrap; color:#b9bfcc; }
+  details summary { cursor:pointer; color:var(--mut); }
+  .tree { font:12px/1.6 ui-monospace,Menlo,Consolas,monospace; margin-top:10px; }
+  .tree .ch { cursor:pointer; padding:2px 6px; border-radius:6px; }
+  .tree .ch:hover, .tree .ch.sel { background:#252a35; }
+  .warn { background:#3a2a12; border-color:#6b4a1a; color:#ffd59a; }
+  .hidden { display:none; }
+</style>
+</head>
+<body>
+<main>
+  <h1>💡 Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 18</span></h1>
+  <p class="sub">Sticks, rideau et autres lampes LED Bluetooth, pilotés ensemble ou par groupe.</p>
+
+  <div id="nobt" class="card warn hidden">
+    Ce navigateur ne supporte pas le Web Bluetooth. Ouvre cette page dans <b>Chrome</b> ou <b>Edge</b> (PC, Mac, Android).
+    Sur iPhone/iPad, utilise l'app gratuite <b>Bluefy</b>.
+  </div>
+
+  <div class="card">
+    <h2>Appareils</h2>
+    <div class="row">
+      <button class="primary" id="btnAdd">+ Connecter une lampe</button>
+      <button class="primary hidden" id="btnRe"></button>
+      <label class="muted"><input type="checkbox" id="showAll"> Afficher tous les appareils BT (si la lampe n'apparaît pas)</label>
+    </div>
+    <div id="devices" class="muted" style="margin-top:10px">Aucune lampe connectée. Allume les lampes, ferme l'app officielle sur ton téléphone, puis clique sur « Connecter ».</div>
+    <p class="muted" style="margin:10px 0 0">Le champ à côté du nom est le <b>groupe</b> de l'appareil : tape un nom (ex. « Salon ») pour créer un groupe. Il est mémorisé.</p>
+    <datalist id="groupList"></datalist>
+  </div>
+
+  <div id="targets" class="row"></div>
+
+  <div class="card">
+    <h2 id="ctlTitle">Contrôle</h2>
+    <div class="row">
+      <button id="on">Allumer</button>
+      <button id="off">Éteindre</button>
+      <button id="white">Blanc</button>
+    </div>
+    <div class="row" style="align-items:flex-start">
+      <label class="lbl">Couleur</label>
+      <canvas id="wheel" width="560" height="560" style="width:280px; height:280px; touch-action:none; cursor:crosshair; border-radius:50%"></canvas>
+      <div style="display:flex; flex-direction:column; gap:10px">
+        <div id="preview" style="width:64px; height:64px; border-radius:14px; border:2px solid var(--line); background:#ff7a00"></div>
+        <div class="row" id="swatches" style="margin:0; max-width:180px"></div>
+      </div>
+    </div>
+    <div class="row">
+      <label class="lbl">Luminosité</label>
+      <input type="range" id="bright" min="1" max="100" value="100">
+      <span id="brightVal" class="muted" style="width:40px">100%</span>
+    </div>
+  </div>
+
+  <div class="card hidden" id="diyCard">
+    <h2>🎨 Dessin sur le rideau</h2>
+    <p class="muted" style="margin:0 0 12px">Allume chaque LED séparément (rideau 20×20). Une image met environ 2 secondes à partir.</p>
+    <div class="row" style="align-items:flex-start">
+      <canvas id="diyCanvas" width="400" height="400" style="width:260px; height:260px; touch-action:none; border-radius:8px; background:#000"></canvas>
+      <div style="display:flex; flex-direction:column; gap:8px; flex:1; min-width:220px">
+        <div class="chips" style="display:flex; flex-wrap:wrap; gap:8px">
+          <button data-diy="ring">⭕ Cercle</button>
+          <button data-diy="chroma">🌈 Cercle chromatique</button>
+          <button data-diy="spin">🔄 Cercle qui tourne</button>
+          <button data-diy="clock">🕐 Horloge</button>
+          <button data-diy="tempo">🎵 Ligne de tempo</button>
+        </div>
+        <div class="muted">Ou dessine au doigt avec la couleur de la roue (gomme : coche ci-dessous).</div>
+        <div class="row" style="margin:0">
+          <label><input type="checkbox" id="diyErase"> Gomme</label>
+          <button id="diyClear">Effacer</button>
+          <button class="primary" id="diySend">Envoyer</button>
+          <button id="diyStop">■ Stop</button>
+        </div>
+        <div id="diyStatus" class="muted"></div>
+      </div>
+    </div>
+    <div class="row">
+      <label class="lbl">Défilement</label>
+      <input type="range" id="tempoSpeed" min="1" max="100" value="60">
+      <span id="tempoSpeedVal" class="muted" style="width:40px">60</span>
+    </div>
+    <div class="row">
+      <label><input type="checkbox" id="tempoFollow" checked> La ligne suit le tempo de la musique</label>
+      <label class="muted">Sens <select id="tempoDir"><option value="3" selected>A</option><option value="1">B</option><option value="2">C</option><option value="4">D</option></select></label>
+    </div>
+    <details style="margin-top:10px">
+      <summary>Réglages si le dessin apparaît à l'envers ou n'apparaît pas</summary>
+      <div class="row" style="margin-top:10px">
+        <button data-diy="test">➡️ Mire de test</button>
+        <span class="muted">Flèche rouge vers la droite, carré vert en haut à gauche.</span>
+      </div>
+      <div class="row">
+        <label><input type="checkbox" id="diyFlipX"> Miroir gauche/droite</label>
+        <label><input type="checkbox" id="diyFlipY"> Miroir haut/bas</label>
+        <label><input type="checkbox" id="diySwap"> Pivoter</label>
+      </div>
+      <div class="row">
+        <label class="lbl">Variante</label>
+        <select id="diyVar"><option value="A">A</option><option value="B">B</option><option value="C">C</option></select>
+        <label class="lbl">Code fixe</label>
+        <select id="diyDir"><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5" selected>5</option><option value="6">6</option><option value="7">7</option></select>
+      </div>
+      <div class="row"><button id="diyDiag">🔍 Diagnostic du rideau</button><button id="diyColorBack">Revenir en mode couleur</button></div>
+    </details>
+  </div>
+
+  <div class="card hidden" id="nativeCard">
+    <h2 id="nativeTitle">Animations du groupe</h2>
+    <p class="muted" style="margin:0 0 12px">Animations enregistrées dans les lampes de ce groupe. Elles tournent même si la page est fermée.</p>
+    <div class="fxgrid" id="nativeGrid"></div>
+    <div class="row" style="margin-top:14px">
+      <label class="lbl">Vitesse</label>
+      <input type="range" id="speed" min="1" max="100" value="50">
+    </div>
+  </div>
+
+  <div class="card" id="syncCard">
+    <h2 id="syncTitle">Animations synchronisées</h2>
+    <p class="muted" id="syncDesc" style="margin:0 0 12px"></p>
+    <div id="fxgrid"></div>
+    <div class="row" style="margin-top:14px">
+      <label class="lbl">Vitesse</label>
+      <input type="range" id="anSpeed" min="1" max="100" value="50">
+      <button id="anStop">■ Stop</button>
+    </div>
+  </div>
+
+
+  <div class="card" id="musicCard">
+    <h2>🎵 Mode musique</h2>
+    <p class="muted" style="margin:0 0 12px" id="musicDesc">Les lampes de l'onglet sélectionné réagissent à la musique.</p>
+    <div class="row">
+      <label class="lbl">Source</label>
+      <select id="mSrc" style="flex:1; min-width:220px"></select>
+      <button id="mRefresh" title="Rafraîchir la liste">↻</button>
+    </div>
+    <div class="row">
+      <label class="lbl">Effet</label>
+      <select id="mMode" style="flex:1; min-width:220px">
+        <option value="beat">🥁 Couleur qui change sur le rythme</option>
+        <option value="freq">🎚️ Couleurs selon basses / médiums / aigus</option>
+        <option value="rainbow">🌈 Arc-en-ciel qui pulse sur les basses</option>
+        <option value="volume">🔊 Ma couleur, intensité selon le volume</option>
+      </select>
+    </div>
+    <div class="row">
+      <label class="lbl">Sensibilité</label>
+      <input type="range" id="mSens" min="1" max="100" value="60">
+    </div>
+    <div class="row">
+      <label class="lbl">Délai</label>
+      <input type="range" id="mDelay" min="0" max="500" step="10" value="200">
+      <span id="mDelayVal" class="muted" style="width:70px">200 ms</span>
+    </div>
+    <div class="muted" style="margin-top:4px">Délai : retarde la lumière pour qu'elle tombe en même temps que le son des enceintes Bluetooth.</div>
+    <div class="row">
+      <button class="primary" id="mStart">▶ Démarrer</button>
+      <button id="mStop">■ Arrêter</button>
+      <canvas id="mMeter" width="360" height="40" style="width:180px; height:20px; background:#0c0e13; border-radius:6px"></canvas>
+      <canvas id="mTempo" width="360" height="40" style="width:180px; height:20px; background:#0c0e13; border-radius:6px"></canvas>
+      <span id="mBpm" class="muted" style="min-width:70px">♩ — BPM</span>
+      <span id="mStatus" class="muted"></span>
+    </div>
+    <details style="margin-top:10px" class="pc-only">
+      <summary>Réglage Voicemeeter</summary>
+      <p class="muted" style="margin:8px 0 0">Dans Voicemeeter, sur la tranche où arrive ta musique (en général « Voicemeeter Input » / VAIO), allume le bouton <b>B1</b>.
+      Choisis ensuite <b>Voicemeeter Out B1</b> comme source ici. Tes enceintes restent branchées sur A1 comme d'habitude.
+      Sans Voicemeeter, choisis « Son du PC » : Windows te demandera de partager un écran ; coche alors <b>Partager l'audio du système</b>.</p>
+    </details>
+  </div>
+
+  <div class="card">
+    <details id="explorer">
+      <summary>🔧 Mode explorateur (si aucun protocole ne marche)</summary>
+      <p class="muted">Liste les services/caractéristiques d'un appareil. Clique sur une caractéristique « write » pour la cibler, puis envoie des octets en hexadécimal.</p>
+      <div class="row">
+        <select id="expDev"></select>
+        <button id="expScan">Lister les services</button>
+      </div>
+      <div class="tree" id="tree"></div>
+      <div class="row">
+        <input type="text" id="hex" placeholder="ex : 7e 00 05 03 ff 00 00 00 ef" style="flex:1; min-width:220px">
+        <button id="hexSend">Envoyer</button>
+      </div>
+      <div class="row">
+        <label class="muted">UUID de service supplémentaire à autoriser (avant connexion) :</label>
+        <input type="text" id="extraSvc" placeholder="ex : ae00" style="flex:1; min-width:220px">
+      </div>
+    </details>
+  </div>
+
+  <div class="card">
+    <h2>Journal</h2>
+    <div id="log"></div>
+  </div>
+</main>
+
+<script>
+/* ---------- Pont Android ----------
+   Dans l'app Android, le navigateur intégré n'a pas de Web Bluetooth : on recrée navigator.bluetooth
+   par-dessus le Bluetooth natif (AndroidBle), avec la même interface que sur le PC.
+   Le reste de la page fonctionne donc sans changement. */
+const IS_ANDROID = !!window.AndroidBle;
+if (IS_ANDROID) (() => {
+  const canon = n => typeof n === 'number'
+    ? '0000' + n.toString(16).padStart(4, '0') + '-0000-1000-8000-00805f9b34fb' : String(n).toLowerCase();
+  if (!window.BluetoothUUID) window.BluetoothUUID = { canonicalUUID: canon };
+  const err = (msg, name = 'NetworkError') => new DOMException(msg, name);
+  const b64 = u8 => { let s = ''; for (const b of u8) s += String.fromCharCode(b); return btoa(s); };
+  const unb64 = s => Uint8Array.from(atob(s || ''), c => c.charCodeAt(0));
+  const toU8 = d => d instanceof Uint8Array ? d : d instanceof ArrayBuffer ? new Uint8Array(d)
+    : new Uint8Array(d.buffer, d.byteOffset, d.byteLength);
+
+  const ops = {}; let opn = 0;
+  const op = start => new Promise((res, rej) => { const id = 'op' + (++opn); ops[id] = { res, rej }; start(id); });
+
+  class Events {
+    constructor() { this._l = {}; }
+    addEventListener(t, f) { (this._l[t] = this._l[t] || []).push(f); }
+    removeEventListener(t, f) { this._l[t] = (this._l[t] || []).filter(x => x !== f); }
+    _emit(t) { const e = { type: t, target: this }; (this._l[t] || []).forEach(f => { try { f(e); } catch (x) { console.error(x); } }); }
+  }
+  class Characteristic extends Events {
+    constructor(dev, service, j) {
+      super(); this._dev = dev; this.service = service; this.uuid = j.uuid.toLowerCase(); this.value = null;
+      const p = j.props;
+      this.properties = { broadcast: !!(p & 1), read: !!(p & 2), writeWithoutResponse: !!(p & 4), write: !!(p & 8), notify: !!(p & 16), indicate: !!(p & 32) };
+    }
+    _write(data, withResponse) {
+      if (!this._dev.gatt.connected) return Promise.reject(err('GATT Server is disconnected. Cannot perform GATT operations.'));
+      return op(id => AndroidBle.write(this._dev.id, this.service.uuid, this.uuid, b64(toU8(data)), withResponse, id))
+        .then(() => undefined);
+    }
+    writeValueWithResponse(d) { return this._write(d, true); }
+    writeValueWithoutResponse(d) { return this._write(d, false); }
+    writeValue(d) { return this._write(d, this.properties.write); }
+    readValue() {
+      return op(id => AndroidBle.read(this._dev.id, this.service.uuid, this.uuid, id))
+        .then(v => (this.value = new DataView(unb64(v).buffer)));
+    }
+    startNotifications() { return op(id => AndroidBle.notify(this._dev.id, this.service.uuid, this.uuid, id)).then(() => this); }
+    stopNotifications() { return Promise.resolve(this); }
+  }
+  class Service {
+    constructor(dev, j) { this.device = dev; this.uuid = j.uuid.toLowerCase(); this._c = j.chars.map(c => new Characteristic(dev, this, c)); }
+    async getCharacteristic(u) {
+      const c = this._c.find(x => x.uuid === canon(u));
+      if (!c) throw err('No Characteristics matching UUID ' + canon(u) + ' found in Service.', 'NotFoundError');
+      return c;
+    }
+    async getCharacteristics(u) { return u ? this._c.filter(x => x.uuid === canon(u)) : this._c.slice(); }
+  }
+  class Gatt {
+    constructor(dev) { this.device = dev; this.connected = false; this._s = []; this._pending = null; this.mtu = 23; }
+    connect() {
+      if (this.connected) return Promise.resolve(this);
+      if (this._pending) return this._pending.p;
+      let r, j; const p = new Promise((a, b) => { r = a; j = b; });
+      this._pending = { p, r, j };
+      AndroidBle.connect(this.device.id);
+      this._timer = setTimeout(() => {
+        if (!this._pending) return;
+        const x = this._pending; this._pending = null;
+        AndroidBle.disconnect(this.device.id);
+        x.j(err('Connection attempt failed.'));
+      }, 15000);
+      return p;
+    }
+    disconnect() { AndroidBle.disconnect(this.device.id); }
+    async getPrimaryServices(u) {
+      if (!this.connected) throw err('GATT Server is disconnected. Cannot retrieve services. (Re)connect first with `device.gatt.connect`.');
+      return u ? this._s.filter(s => s.uuid === canon(u)) : this._s.slice();
+    }
+    async getPrimaryService(u) {
+      const s = (await this.getPrimaryServices()).find(x => x.uuid === canon(u));
+      if (!s) throw err('No Services matching UUID ' + canon(u) + ' found in Device.', 'NotFoundError');
+      return s;
+    }
+  }
+  class Device extends Events {
+    constructor(id, name) { super(); this.id = id; this.name = name || ''; this.gatt = new Gatt(this); }
+    forget() { const k = known(); delete k[this.id]; saveKnown(k); return Promise.resolve(); }
+  }
+  const known = () => { try { return JSON.parse(localStorage.getItem('androidKnown')) || {}; } catch (e) { return {}; } };
+  const saveKnown = k => { try { localStorage.setItem('androidKnown', JSON.stringify(k)); } catch (e) { } };
+  const devs = {};
+  const device = (id, name) => { const d = devs[id] || (devs[id] = new Device(id, name)); if (name) d.name = name; return d; };
+
+  // ---------- fenêtre de choix des appareils ----------
+  let chooser = null;
+  function choose(opts) {
+    if (chooser) chooser.cancel();
+    if (!AndroidBle.enabled()) { AndroidBle.enable(); return Promise.reject(err('Allume le Bluetooth puis réessaie.', 'NotFoundError')); }
+    return new Promise((resolve, reject) => {
+      const filters = opts.filters || [];
+      const match = (name, uuids) => opts.acceptAllDevices ? true : filters.some(f =>
+        (f.name && name === f.name) || (f.namePrefix && name && name.startsWith(f.namePrefix)) ||
+        (f.services && f.services.some(s => uuids.includes(canon(s)))));
+      const box = document.createElement('div');
+      box.style.cssText = 'position:fixed;inset:0;z-index:99;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center';
+      box.innerHTML = `<div style="background:#1b1e26;border:1px solid #2b2f3a;border-radius:16px 16px 0 0;width:100%;max-width:520px;max-height:75vh;display:flex;flex-direction:column;padding:16px">
+        <div style="font-weight:600;font-size:17px;margin-bottom:4px">Choisis une lampe</div>
+        <div class="muted" id="bleScanState" style="margin-bottom:10px">Recherche en cours…</div>
+        <div id="bleList" style="overflow:auto;display:flex;flex-direction:column;gap:8px"></div>
+        <button id="bleCancel" style="margin-top:12px">Annuler</button></div>`;
+      document.body.appendChild(box);
+      const list = box.querySelector('#bleList'), seen = {};
+      const close = () => { AndroidBle.stopScan(); box.remove(); chooser = null; };
+      chooser = {
+        add(addr, name, rssi, uuids) {
+          if (!name || !match(name, uuids)) return;
+          if (seen[addr]) { seen[addr].querySelector('.rssi').textContent = rssi + ' dBm'; return; }
+          const b = document.createElement('button');
+          b.style.cssText = 'display:flex;justify-content:space-between;padding:14px;text-align:left';
+          b.innerHTML = `<span>${name}</span><span class="rssi muted">${rssi} dBm</span>`;
+          b.onclick = () => { close(); resolve(device(addr, name)); };
+          seen[addr] = b; list.appendChild(b);
+          box.querySelector('#bleScanState').textContent = 'Touche la lampe à connecter.';
+        },
+        error(m) { box.querySelector('#bleScanState').textContent = 'Recherche impossible : ' + m; },
+        cancel() { close(); reject(err('User cancelled the requestDevice() chooser.', 'NotFoundError')); },
+      };
+      box.querySelector('#bleCancel').onclick = () => chooser.cancel();
+      AndroidBle.startScan();
+      setTimeout(() => { if (chooser && !list.children.length) chooser.error('aucune lampe trouvée — vérifie qu\'elle est allumée et que l\'app officielle est fermée'); }, 12000);
+    });
+  }
+
+  // ---------- réponses du Bluetooth natif ----------
+  window.__ble = {
+    onConnected(addr, mtu, json) {
+      const d = devs[addr]; if (!d) return;
+      const g = d.gatt; clearTimeout(g._timer);
+      g.connected = true; g.mtu = mtu;
+      g._s = JSON.parse(json).map(s => new Service(d, s));
+      const k = known(); k[addr] = d.name; saveKnown(k);
+      if (g._pending) { const x = g._pending; g._pending = null; x.r(g); }
+    },
+    onDisconnected(addr, why) {
+      const d = devs[addr]; if (!d) return;
+      const g = d.gatt; clearTimeout(g._timer);
+      const was = g.connected; g.connected = false;
+      if (g._pending) { const x = g._pending; g._pending = null; x.j(err('Connection attempt failed. (' + why + ')')); }
+      if (was) d._emit('gattserverdisconnected');
+    },
+    onOp(id, ok, v) {
+      const o = ops[id]; if (!o) return; delete ops[id];
+      ok ? o.res(v) : o.rej(err('GATT operation failed for unknown reason.'));
+    },
+    onNotify(addr, uuid, v) {
+      const d = devs[addr]; if (!d) return;
+      const u = uuid.toLowerCase(), data = unb64(v);
+      d.gatt._s.forEach(s => s._c.forEach(c => { if (c.uuid === u) { c.value = new DataView(data.buffer); c._emit('characteristicvaluechanged'); } }));
+    },
+    onScan(addr, name, rssi, uuids) { if (chooser) chooser.add(addr, name, rssi, JSON.parse(uuids || '[]')); },
+    onScanError(m) { if (chooser) chooser.error(m); },
+  };
+
+  Object.defineProperty(navigator, 'bluetooth', { configurable: true, value: {
+    requestDevice: opts => choose(opts || {}),
+    getDevices: async () => Object.entries(known()).map(([id, name]) => device(id, name)),
+  } });
+})();
+
+const u = n => typeof n === 'number' ? BluetoothUUID.canonicalUUID(n) : n.toLowerCase();
+const clamp = (v, a, b) => Math.max(a, Math.min(b, Math.round(v)));
+
+const PROTOCOLS = [
+  {
+    id: 'elk', name: 'ELK-BLEDOM / duoCo / Lotus Lantern',
+    service: 0xfff0, char: 0xfff3,
+    power: on => [0x7e,0x00,0x04,on?0xf0:0x00,0x00,on?0x01:0x00,0xff,0x00,0xef],
+    color: (r,g,b) => [0x7e,0x00,0x05,0x03,r,g,b,0x00,0xef],
+    white: () => [0x7e,0x00,0x05,0x03,255,255,255,0x00,0xef],
+    bright: p => [0x7e,0x00,0x01,clamp(p,0,100),0x00,0x00,0x00,0x00,0xef],
+    effect: m => [0x7e,0x00,0x03,m,0x03,0x00,0x00,0x00,0xef],
+    speed: s => [0x7e,0x00,0x02,clamp(s,0,100),0x00,0x00,0x00,0x00,0xef],
+    effects: [
+      [0x87,'Saut RVB'],[0x88,'Saut 7 couleurs'],[0x89,'Fondu RVB'],[0x8a,'Fondu 7 couleurs'],
+      [0x8b,'Fondu rouge'],[0x8c,'Fondu vert'],[0x8d,'Fondu bleu'],[0x8e,'Fondu jaune'],
+      [0x8f,'Fondu cyan'],[0x90,'Fondu violet'],[0x91,'Fondu blanc'],
+      [0x95,'Clignote RVB'],[0x96,'Clignote 7 couleurs'],[0x97,'Clignote rouge'],
+      [0x98,'Clignote vert'],[0x99,'Clignote bleu'],[0x9c,'Clignote blanc'],
+    ],
+  },
+  {
+    id: 'triones', name: 'Triones / Happy Lighting / iLight',
+    service: 0xffd5, char: 0xffd9,
+    power: on => [0xcc, on?0x23:0x24, 0x33],
+    color: (r,g,b) => [0x56,r,g,b,0x00,0xf0,0xaa],
+    white: (w=255) => [0x56,0,0,0,w,0x0f,0xaa],
+    bright: null, // géré en mettant la couleur à l'échelle
+    effect: (m,s) => [0xbb, m, s, 0x44],
+    speedInEffect: true,
+    effects: [
+      [0x25,'Fondu 7 couleurs'],[0x26,'Fondu rouge'],[0x27,'Fondu vert'],[0x28,'Fondu bleu'],
+      [0x29,'Fondu jaune'],[0x2a,'Fondu cyan'],[0x2b,'Fondu violet'],[0x2c,'Fondu blanc'],
+      [0x2d,'Fondu rouge/vert'],[0x2e,'Fondu rouge/bleu'],[0x2f,'Fondu vert/bleu'],
+      [0x30,'Stroboscope 7 couleurs'],[0x31,'Strobo rouge'],[0x32,'Strobo vert'],[0x33,'Strobo bleu'],
+      [0x37,'Strobo blanc'],[0x38,'Saut 7 couleurs'],
+    ],
+  },
+  {
+    id: 'magic', name: 'Magic Home / Zengge (LEDBLE)',
+    service: 0xffe5, char: 0xffe9,
+    power: on => [0xcc, on?0x23:0x24, 0x33],
+    color: (r,g,b) => [0x56,r,g,b,0x00,0xf0,0xaa],
+    white: (w=255) => [0x56,0,0,0,w,0x0f,0xaa],
+    bright: null,
+    effect: (m,s) => [0xbb, m, s, 0x44],
+    speedInEffect: true,
+    effects: null, // identique à Triones
+  },
+  {
+    id: 'govee', name: 'Govee (anciens modèles BLE)',
+    service: '00010203-0405-0607-0809-0a0b0c0d1910', char: '00010203-0405-0607-0809-0a0b0c0d2b11',
+    govee: true,
+    power: on => [0x33,0x01,on?1:0],
+    color: (r,g,b) => [0x33,0x05,0x02,r,g,b],
+    white: () => [0x33,0x05,0x02,255,255,255],
+    bright: p => [0x33,0x04,clamp(p*2.55,0,255)],
+    effect: null, effects: [],
+    keepAlive: [0xaa,0x01],
+  },
+  {
+    id: 'sp110e', name: 'SP110E / BanlanX / HM-10 générique',
+    service: 0xffe0, char: 0xffe1,
+    power: on => [0x00,0x00,0x00,on?0xaa:0xab],
+    color: (r,g,b) => [r,g,b,0x1e],
+    white: () => [255,255,255,0x1e],
+    bright: p => [clamp(p*2.55,0,255),0x00,0x00,0x2a],
+    effect: m => [m,0x00,0x00,0x2c],
+    speed: s => [clamp(s*2.55,0,255),0x00,0x00,0x03],
+    effects: Array.from({length:20},(_,i)=>[i+1,'Mode '+(i+1)]),
+  },
+  {
+    id: 'fairy', name: 'Hello Fairy (guirlandes Action)',
+    minGap: 220,   // ms entre deux couleurs d'animation : le module Bluetooth du rideau sature au-delà
+    service: '49535343-fe7d-4ae5-8fa9-9fafd205e455', char: '49535343-8841-43f4-a8d4-ecbe34729bb3',
+    power: on => fairy([0xaa,0x02,0x01,on?1:0]),
+    color: (r,g,b) => { const [h,s,v] = rgbToHsv(r,g,b);
+      return fairy([0xaa,0x03,0x07,0x01, ...be16(Math.min(359,Math.floor(h*360))), ...be16(fairyS(s)), ...be16(fairyV(v))]); },
+    white: (w=255) => fairy([0xaa,0x03,0x07,0x01, 0,0, 0,0, ...be16(fairyV(w/255))]),
+    bright: null, // la luminosité passe par le V du HSV
+    // un preset = 2 trames : motif + luminosité, puis vitesse
+    effectFrames: (m, speed, bright) => [
+      fairy([0xaa,0x03,0x04,0x02, m & 0xff, ...be16(clamp(Math.round(bright/10),1,10)*100)]),
+      fairy([0xaa,0x0c,0x01, clamp(speed,1,100)]),
+    ],
+    // [numéro, nom, catégorie] — catégories relevées sur le rideau
+    effects: (() => {
+      const cats = [['🎄 Noël', 'Noël', [1,2,3,4,5,6]], ['🎃 Halloween', 'Halloween', [7,8,9,10,11,12]],
+                    ['💖 Amour', 'Amour', [18,19,20,21,22]], ['🍀 Trèfle à quatre feuilles', 'Trèfle', [28,31]],
+                    ['🍺 Bière', 'Bière', [32]], ['🏳️ Drapeaux', 'Drapeau', [33,34,35,36,37,38,39,40,41,42]],
+                    ['🎆 Feu d\'artifice', 'Feu d\'artifice orange', [58]]];
+      return cats.flatMap(([cat, name, list]) =>
+        list.map((v, k) => [v, list.length > 1 ? `${name} ${k + 1}` : name, cat]));
+    })(),
+  },
+];
+// La guirlande n'accepte V (luminosité) que par paliers de 100 (100…1000), S par paliers de 10
+function fairyV(v){ return v <= 0.001 ? 0 : clamp(Math.round(v*10),1,10)*100; }
+function fairyS(s){ return clamp(Math.round(s*100),0,100)*10; }
+function fairy(bytes){ return [...bytes, bytes.reduce((a,b)=>a+b,0) & 0xff]; }
+function be16(n){ return [(n>>8)&0xff, n&0xff]; }
+function rgbToHsv(r,g,b){ r/=255; g/=255; b/=255;
+  const mx=Math.max(r,g,b), mn=Math.min(r,g,b), d=mx-mn; let h=0;
+  if (d) { if (mx===r) h=((g-b)/d)%6; else if (mx===g) h=(b-r)/d+2; else h=(r-g)/d+4; h/=6; if (h<0) h+=1; }
+  return [h, mx?d/mx:0, mx]; }
+PROTOCOLS.find(p=>p.id==='magic').effects = PROTOCOLS.find(p=>p.id==='triones').effects;
+
+
+const EXTRA_SERVICES = [0xfff0,0xffe0,0xffd0,0xffd5,0xffe5,0xff00,0xff10,0xfe00,0xae00,0xae30,0xa032,0xfee7,0x1800,0x180a];
+const NAME_PREFIXES = ['Hello Fairy','Fairy','ELK','BLEDOM','ELK-BLE','MELK','LEDBLE','LEDnet','Triones','QHM','Dream','Govee','ihoment','SP1','LED','Lamp','LAMP','BT','Lotus','duoCo','MohuanLED','KS03','BJ_LED','SMART','Light'];
+const isFairyName = d => /fairy/i.test(d.device.name || '');
+const DEFAULT_GROUP = (p, d) => (p && p.id === 'fairy') || (d && isFairyName(d)) ? 'Rideau' : 'Sticks';
+const manualGroup = d => store.get('groups', {})[d.device.id];
+
+/* ============================================================ */
+const $ = id => document.getElementById(id);
+const logEl = $('log');
+function log(msg) {
+  logEl.textContent += `[${new Date().toLocaleTimeString()}] ${msg}\n`;
+  if (logEl.textContent.length > 40000) logEl.textContent = logEl.textContent.slice(-30000);
+  logEl.scrollTop = logEl.scrollHeight;
+}
+const hex = arr => Array.from(arr).map(b=>b.toString(16).padStart(2,'0')).join(' ');
+const store = {
+  get(k, def) { try { const v = JSON.parse(localStorage.getItem(k)); return v ?? def; } catch(e) { return def; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch(e) {} },
+};
+
+const devices = []; // {device, server, char, proto, enabled, group, queue, pending, anim, lastFrame}
+let target = '*';   // '*' = tout, sinon nom de groupe
+let savedTarget = null;              // onglet à rouvrir dès que son groupe est reconnecté
+const lastSaved = {};
+
+function goveePacket(bytes) {
+  const p = new Uint8Array(20); p.set(bytes.slice(0,19));
+  let x = 0; for (let i=0;i<19;i++) x ^= p[i]; p[19] = x; return p;
+}
+
+// Écrit une trame ; si le Bluetooth répond « déjà en cours », on attend et on réessaie
+async function writeRetry(ch, data, mode) {
+  for (let i = 0; ; i++) {
+    try {
+      if (mode === 'noresp' && ch.writeValueWithoutResponse) return await ch.writeValueWithoutResponse(data);
+      if (mode === 'resp' && ch.writeValueWithResponse) return await ch.writeValueWithResponse(data);
+      if (ch.properties.writeWithoutResponse && ch.writeValueWithoutResponse) return await ch.writeValueWithoutResponse(data);
+      if (ch.writeValueWithResponse) return await ch.writeValueWithResponse(data);
+      return await ch.writeValue(data);
+    } catch (e) {
+      if (i < 12 && /in progress|busy|en cours/i.test(e.message)) { await new Promise(r => setTimeout(r, 40 + i * 30)); continue; }
+      throw e;
+    }
+  }
+}
+function send(d, bytes, quiet) {
+  if (!d.char || !d.device.gatt.connected) return Promise.resolve();
+  const data = d.proto && d.proto.govee ? goveePacket(bytes) : new Uint8Array(bytes);
+  d.pending = (d.pending || 0) + 1;
+  d.queue = (d.queue || Promise.resolve()).then(async () => {
+    try {
+      await writeRetry(d.char, data);
+      if (!quiet) log(`→ ${d.device.name||'?'} [${d.group}] : ${hex(data)}`);
+    } catch (e) { log(`✗ ${d.device.name||'?'} : ${e.message}`); }
+    d.pending--;
+  });
+  return d.queue;
+}
+
+const ready = d => d.enabled && d.char && d.proto && d.device.gatt.connected;
+const targets = () => devices.filter(d => ready(d) && (target === '*' || d.group === target));
+function each(fn) {
+  const t = targets();
+  if (!t.length) log('Aucun appareil prêt dans « ' + (target === '*' ? 'Tout' : target) + ' ».');
+  t.forEach(fn);
+}
+
+// Couleur → trame, en gérant la luminosité selon le type de lampe
+function colorFrame(d, r, g, b, bright = state.bright) {
+  const p = d.proto;
+  if (p.bright) return p.color(r, g, b);          // luminosité native envoyée à part
+  const k = bright / 100;
+  return p.color(clamp(r*k,0,255), clamp(g*k,0,255), clamp(b*k,0,255));
+}
+
+/* ---------- Connexion ---------- */
+function parseExtra() {
+  const v = $('extraSvc').value.trim().toLowerCase();
+  return v ? v.split(/[ ,;]+/).filter(Boolean).map(s => /^[0-9a-f]{4}$/.test(s) ? parseInt(s,16) : s) : [];
+}
+
+const allServices = () => [...new Set([...PROTOCOLS.map(p=>u(p.service)), ...EXTRA_SERVICES.map(u), ...parseExtra().map(u)])];
+// Lampes connues mais pas encore reconnectées (quand le navigateur ne permet pas la reconnexion automatique)
+function missingKnown() {
+  const known = store.get('known', {});
+  return Object.entries(known).filter(([id]) => !devices.some(d => d.device.id === id && d.device.gatt.connected)).map(([, n]) => n);
+}
+function updateRe() {
+  const names = [...new Set(missingKnown())].filter(n => n && n !== '?');
+  $('btnRe').classList.toggle('hidden', !names.length || reAuto);
+  $('btnRe').textContent = `↻ Reconnecter mes lampes (${names.length})`;
+}
+let reAuto = false;   // true quand getDevices() a fonctionné
+async function reconnectKnown() {
+  const names = [...new Set(missingKnown())].filter(n => n && n !== '?');
+  if (!names.length) return;
+  let device;
+  try { device = await navigator.bluetooth.requestDevice({ filters: names.map(name => ({ name })), optionalServices: allServices() }); }
+  catch (e) { return log('Annulé : ' + e.message); }
+  const old = devices.find(x => x.device.id === device.id);
+  await openGatt(old || addDevice(device));
+  updateRe();
+}
+async function connect() {
+  const services = allServices();
+  let device;
+  try {
+    device = await navigator.bluetooth.requestDevice($('showAll').checked
+      ? { acceptAllDevices: true, optionalServices: services }
+      : { filters: [...PROTOCOLS.map(p=>({services:[u(p.service)]})), ...NAME_PREFIXES.map(n=>({namePrefix:n}))], optionalServices: services });
+  } catch (e) { log('Annulé : ' + e.message); return; }
+  const old = devices.find(x => x.device.id === device.id);
+  if (old) { old.manual = false; if (!old.device.gatt.connected) openGatt(old); else log('Déjà connecté.'); return; }
+  await openGatt(addDevice(device));
+}
+
+function addDevice(device) {
+  const d = { device, enabled:true, group: manualGroup({device}) || null, queue:Promise.resolve(), pending:0 };
+  devices.push(d);
+  const known = store.get('known', {}); known[device.id] = device.name || '?'; store.set('known', known);
+  device.addEventListener('gattserverdisconnected', () => {
+    log(`Déconnecté : ${device.name}`); stopKeepAlive(d); d.char = null; render();
+    if (!d.manual && !d.removed) scheduleReconnect(d);
+  });
+  if (device.watchAdvertisements) {          // la lampe se rallume → on se reconnecte tout de suite
+    device.addEventListener('advertisementreceived', () => { if (!device.gatt.connected && !d.manual && !d.removed && !d.connecting) openGatt(d); });
+  }
+  render();
+  return d;
+}
+
+function scheduleReconnect(d) {
+  if (d.reconnTimer) return;
+  if (d.device.watchAdvertisements) d.device.watchAdvertisements().catch(() => {});
+  d.reconnTimer = setInterval(() => {
+    if (d.removed || d.manual || d.device.gatt.connected) { clearInterval(d.reconnTimer); d.reconnTimer = null; return; }
+    if (!d.connecting) openGatt(d, true);
+  }, 6000);
+}
+
+// Au démarrage : reprend les lampes déjà autorisées, sans fenêtre de choix
+async function autoReconnect() {
+  if (!navigator.bluetooth || !navigator.bluetooth.getDevices) {
+    log('Reconnexion automatique non disponible : clique sur « Reconnecter mes lampes » (tes réglages sont gardés).');
+    return;
+  }
+  let list = [];
+  try { list = await navigator.bluetooth.getDevices(); } catch (e) {}
+  if (!list.length) { log(missingKnown().length ? 'Clique sur « Reconnecter mes lampes » pour les reprendre (tes réglages sont gardés).' : 'Aucune lampe mémorisée pour l\'instant.'); return; }
+  reAuto = true;
+  log(`Reconnexion de ${list.length} appareil(s) mémorisé(s)…`);
+  list.forEach(device => { if (!devices.some(x => x.device.id === device.id)) { const d = addDevice(device); openGatt(d, true).then(() => { if (!device.gatt.connected) scheduleReconnect(d); }); } });
+}
+
+async function openGatt(d, quiet) {
+  if (d.connecting) return;
+  d.connecting = true;
+  try {
+    if (!quiet) log(`Connexion à ${d.device.name || d.device.id}…`);
+    d.server = await d.device.gatt.connect();
+    const uuids = (await d.server.getPrimaryServices()).map(s => s.uuid);
+    log('Services : ' + (uuids.map(shortUuid).join(', ') || 'aucun visible'));
+    const saved = store.get('proto_' + d.device.id);
+    const score = p => (p.id === saved ? 4 : 0) + (p.id === 'fairy' && isFairyName(d) ? 2 : 0) + (typeof p.service === 'string' ? 1 : 0);
+    const order = [...PROTOCOLS].sort((a,b) => score(b) - score(a));
+    for (const p of order) {
+      if (uuids.includes(u(p.service))) { try { await useProtocol(d, p); break; } catch (e) {} }
+    }
+    if (!d.proto) log('⚠ Aucun protocole connu détecté. Essaie le menu protocole ou le mode explorateur.');
+  } catch (e) { if (!quiet) log('Erreur de connexion : ' + e.message + ' — nouvel essai automatique.'); if (!d.manual) scheduleReconnect(d); }
+  d.connecting = false;
+  d.group = manualGroup(d) || DEFAULT_GROUP(d.proto, d);
+  // reprend l'animation qui tournait sur cette lampe avant le rechargement
+  const savedAnim = store.get('anims', {})[d.device.id];
+  if (d.char && d.proto && savedAnim && ANIM[savedAnim] && savedAnim !== 'music' && !d.anim) {
+    const twin = devices.find(x => x !== d && x.anim && x.anim.id === savedAnim);
+    d.anim = { id: savedAnim, p0: twin ? twin.anim.p0 : clock.p }; d.lastFrame = null;
+    log(`↻ ${d.device.name} reprend « ${ANIM[savedAnim].name} »`);
+  }
+  render();
+}
+
+async function useProtocol(d, p) {
+  stopKeepAlive(d);
+  const svc = await d.server.getPrimaryService(u(p.service));
+  d.char = await svc.getCharacteristic(u(p.char));
+  d.proto = p;
+  store.set('proto_' + d.device.id, p.id);
+  log(`✓ ${d.device.name} : protocole « ${p.name} »`);
+  if (p.keepAlive) d.keepAliveTimer = setInterval(() => send(d, p.keepAlive, true), 2000);
+}
+function stopKeepAlive(d){ if (d.keepAliveTimer) clearInterval(d.keepAliveTimer); d.keepAliveTimer = null; }
+const shortUuid = s => { const m = s.match(/^0000([0-9a-f]{4})-0000-1000-8000-00805f9b34fb$/); return m ? m[1] : s; };
+
+function setGroup(d, g) {
+  const all = store.get('groups', {});
+  if (g.trim()) { d.group = g.trim(); all[d.device.id] = d.group; }
+  else { d.group = DEFAULT_GROUP(d.proto, d); delete all[d.device.id]; }   // champ vidé → groupe automatique
+  store.set('groups', all);
+  log(`${d.device.name} → groupe « ${d.group} »`);
+  renderTargets();
+}
+
+/* ---------- Rendu ---------- */
+function render() {
+  const box = $('devices');
+  if (devices.length) { box.innerHTML = ''; box.classList.remove('muted'); }
+  devices.forEach((d, i) => {
+    const conn = d.device.gatt.connected;
+    const row = document.createElement('div');
+    row.className = 'dev';
+    row.innerHTML = `
+      <span class="dot ${conn?'':'off'}"></span>
+      <input type="checkbox" ${d.enabled?'checked':''} title="Actif">
+      <span class="name">${d.device.name || 'Sans nom'}</span>
+      <input type="text" list="groupList" value="${d.group || ''}" title="Groupe">
+      <select>${['<option value="">— protocole —</option>', ...PROTOCOLS.map(p=>`<option value="${p.id}" ${d.proto&&d.proto.id===p.id?'selected':''}>${p.name}</option>`)].join('')}</select>
+      <button>${conn?'Déconnecter':'Reconnecter'}</button>
+      <button title="Retirer">✕</button>`;
+    const [cb, grp] = row.querySelectorAll('input');
+    const sel = row.querySelector('select');
+    const [btnC, btnX] = row.querySelectorAll('button');
+    cb.onchange = () => { d.enabled = cb.checked; renderTargets(); };
+    grp.onchange = () => setGroup(d, grp.value);
+    sel.onchange = async () => {
+      const p = PROTOCOLS.find(x=>x.id===sel.value); if (!p) return;
+      try { await useProtocol(d, p); } catch (e) { log(`✗ ${p.name} indisponible : ${e.message}`); }
+      if (!manualGroup(d)) d.group = DEFAULT_GROUP(d.proto, d);
+      render();
+    };
+    btnC.onclick = () => { if (conn) { d.manual = true; d.device.gatt.disconnect(); } else { d.manual = false; openGatt(d); } };
+    btnX.onclick = () => {
+      d.removed = true; stopKeepAlive(d); d.anim = null; if (conn) d.device.gatt.disconnect();
+      const known = store.get('known', {}), anims = store.get('anims', {}); delete known[d.device.id]; delete anims[d.device.id];
+      store.set('known', known); store.set('anims', anims);
+      if (d.device.forget) d.device.forget().catch(() => {});   // oublie aussi l'autorisation
+      devices.splice(i,1); render();
+    };
+    box.appendChild(row);
+  });
+  renderTargets(); fillExpDev(); updateRe();
+}
+
+function groups() { return [...new Set(devices.map(d => d.group).filter(Boolean))]; }
+
+function renderTargets() {
+  const g = groups();
+  if (savedTarget && g.includes(savedTarget)) { target = savedTarget; savedTarget = null; }
+  if (target !== '*' && !g.includes(target)) target = '*';
+  $('groupList').innerHTML = [...new Set([...g, 'Sticks', 'Rideau'])].map(x => `<option value="${x}">`).join('');
+  const bar = $('targets');
+  bar.innerHTML = '<span class="muted">Contrôler :</span>';
+  [['*', 'Tout'], ...g.map(x => [x, x])].forEach(([k, label]) => {
+    const n = devices.filter(d => ready(d) && (k === '*' || d.group === k)).length;
+    const b = document.createElement('button');
+    b.textContent = `${label} (${n})`;
+    if (k === target) b.classList.add('sel');
+    b.onclick = () => { target = k; savedTarget = null; renderTargets(); };
+    bar.appendChild(b);
+  });
+  $('ctlTitle').textContent = 'Contrôle — ' + (target === '*' ? 'tout' : target);
+  // Tout → bibliothèque synchronisée ; groupe de sticks (animations intégrées nommées) → seulement leurs options ;
+  // rideau / autre groupe → bibliothèque jouée sur ce groupe seul
+  const t = targets();
+  const sticksOnly = target !== '*' && t.length > 0 && t.every(d => d.proto.effects && d.proto.effects.length && !d.proto.effects.some(e => e[2]) &&
+                     d.proto.effects.filter(([, n]) => /^(Animation|Mode) /.test(n)).length <= d.proto.effects.length / 2);
+  $('syncCard').classList.toggle('hidden', sticksOnly);
+  $('diyCard').classList.toggle('hidden', !IS_ANDROID || target === '*' || !t.some(d => d.proto.id === 'fairy'));
+  // « Tout » : seulement les animations retenues ; les autres onglets gardent toute la bibliothèque
+  const ALL_TAB = ['wheel', 'police'];
+  document.querySelectorAll('#fxgrid .catrow').forEach(row => {
+    let shown = 0;
+    row.querySelectorAll('button').forEach(b => {
+      const keep = target !== '*' || ALL_TAB.includes(b.dataset.id);
+      b.classList.toggle('hidden', !keep); if (keep) shown++;
+    });
+    row.classList.toggle('hidden', !shown);
+  });
+  const low = target.toLowerCase();
+  $('syncTitle').textContent = target === '*' ? 'Animations synchronisées'
+    : 'Animations de la page' + (low === 'rideau' ? ' pour le rideau' : ' pour ' + target);
+  $('musicDesc').textContent = 'Les lampes ' + (target === '*' ? 'de tous les groupes' : 'de « ' + target + ' »') + ' réagissent à la musique.';
+  $('syncDesc').textContent = target === '*'
+    ? 'Jouées en même temps sur tous les appareils (sticks et rideau ensemble). Garde la page ouverte.'
+    : 'Créées par la page et jouées sur ' + (low === 'rideau' ? 'le rideau' : 'ce groupe') + ' uniquement. Garde la page ouverte.';
+  fillNative(); markPlaying();
+}
+
+/* ---------- Contrôles de base ---------- */
+let state = { r:255, g:122, b:0, bright:100 };
+const hexToRgb = h => [1,3,5].map(i=>parseInt(h.substr(i,2),16));
+
+function throttle(fn, ms=80) {
+  let t=null, pending=false;
+  return () => { if (t) { pending=true; return; } fn(); t=setTimeout(()=>{ t=null; if(pending){pending=false; fn();} }, ms); };
+}
+const applyColor = throttle(() => each(d => {
+  if (d.diy) return;
+  if (d.anim) return;   // pendant une animation, elle reprend la couleur choisie au pas suivant
+  d.whiteMode = false; d.fx = null;
+  send(d, colorFrame(d, state.r, state.g, state.b));
+}));
+const applyBright = throttle(() => each(d => {
+  const p = d.proto;
+  if (d.anim) return;                               // l'animation reprend la luminosité au pas suivant
+  if (p.effectFrames && d.fx) p.effectFrames(d.fx, +$('speed').value, state.bright).forEach(f => send(d, f));
+  else if (p.bright) send(d, p.bright(state.bright));
+  else if (d.whiteMode) send(d, p.white(clamp(2.55*state.bright,1,255)));
+  else send(d, colorFrame(d, state.r, state.g, state.b));
+}), 100);
+
+$('on').onclick  = () => each(d => send(d, d.proto.power(true)));
+$('off').onclick = () => each(d => { d.anim = null; send(d, d.proto.power(false)); markPlaying(); });
+$('white').onclick = () => each(d => { d.anim = null; d.fx = null; d.whiteMode = true; send(d, d.proto.white(clamp(2.55*state.bright,1,255))); markPlaying(); });
+/* ---------- Roue chromatique ---------- */
+const wheel = $('wheel'), wctx = wheel.getContext('2d'), W = wheel.width, R = W / 2 - 4;
+const wheelImg = wctx.createImageData(W, W);
+for (let y = 0; y < W; y++) for (let x = 0; x < W; x++) {
+  const dx = x - W/2, dy = y - W/2, dist = Math.hypot(dx, dy), i = (y * W + x) * 4;
+  if (dist > R + 1) continue;
+  const [r, g, b] = hsvToRgb(Math.atan2(dy, dx) / (2 * Math.PI), Math.min(1, dist / R), 1);
+  wheelImg.data.set([r, g, b, dist > R ? 255 * (R + 1 - dist) : 255], i);   // bord anti-crénelé
+}
+let wheelPos = null, clockHue = null, spinPos = null, spinHS = [0, 1];
+// Roue en rotation : part de la couleur choisie et tourne à la même distance du centre (1 tour = 14 pas)
+function wheelSpin(p) {
+  const [h0, s0] = rgbToHsv(state.r, state.g, state.b);
+  return [h0 + p / 14, s0 < 0.25 ? 1 : s0];
+}
+function drawWheel() {
+  wctx.putImageData(wheelImg, 0, 0);
+  if (clockHue !== null) {                         // aiguille de l'animation « Cercle horloge »
+    const a = clockHue * 2 * Math.PI, x = W/2 + Math.cos(a) * R, y = W/2 + Math.sin(a) * R;
+    wctx.lineCap = 'round';
+    wctx.lineWidth = 14; wctx.strokeStyle = 'rgba(0,0,0,.6)';
+    wctx.beginPath(); wctx.moveTo(W/2, W/2); wctx.lineTo(x, y); wctx.stroke();
+    wctx.lineWidth = 8; wctx.strokeStyle = '#fff';
+    wctx.beginPath(); wctx.moveTo(W/2, W/2); wctx.lineTo(x, y); wctx.stroke();
+    wctx.fillStyle = '#fff'; wctx.beginPath(); wctx.arc(W/2, W/2, 14, 0, 2 * Math.PI); wctx.fill();
+    wctx.fillStyle = `rgb(${hsvToRgb(clockHue, 1, 1).join(',')})`; wctx.strokeStyle = '#fff'; wctx.lineWidth = 6;
+    wctx.beginPath(); wctx.arc(x, y, 20, 0, 2 * Math.PI); wctx.fill(); wctx.stroke();
+    return;
+  }
+  const pos = spinPos || wheelPos;
+  if (!pos) return;
+  wctx.lineWidth = 6; wctx.strokeStyle = '#fff';
+  wctx.beginPath(); wctx.arc(pos[0], pos[1], 18, 0, 2 * Math.PI); wctx.stroke();
+  wctx.lineWidth = 2; wctx.strokeStyle = '#000';
+  wctx.beginPath(); wctx.arc(pos[0], pos[1], 22, 0, 2 * Math.PI); wctx.stroke();
+  if (spinPos) {                                   // pastille remplie de la couleur en cours
+    wctx.fillStyle = `rgb(${hsvToRgb(...spinHS, 1).join(',')})`;
+    wctx.beginPath(); wctx.arc(pos[0], pos[1], 15, 0, 2 * Math.PI); wctx.fill();
+  }
+}
+function setColor(rgb) {
+  [state.r, state.g, state.b] = rgb;
+  $('preview').style.background = `rgb(${rgb.join(',')})`;
+  const [h, s] = rgbToHsv(...rgb);                 // place le repère sur la roue
+  wheelPos = [W/2 + Math.cos(h * 2 * Math.PI) * s * R, W/2 + Math.sin(h * 2 * Math.PI) * s * R];
+  drawWheel(); applyColor();
+}
+function pickAt(e) {
+  const rect = wheel.getBoundingClientRect(), k = W / rect.width;
+  let dx = (e.clientX - rect.left) * k - W/2, dy = (e.clientY - rect.top) * k - W/2;
+  const dist = Math.hypot(dx, dy);
+  if (dist > R) { dx *= R / dist; dy *= R / dist; }  // reste dans le cercle même si on déborde
+  setColor(hsvToRgb(Math.atan2(dy, dx) / (2 * Math.PI), Math.min(1, Math.hypot(dx, dy) / R), 1));
+}
+wheel.addEventListener('pointerdown', e => { wheel.setPointerCapture(e.pointerId); pickAt(e); });
+wheel.addEventListener('pointermove', e => { if (wheel.hasPointerCapture(e.pointerId)) pickAt(e); });
+$('bright').oninput = e => { state.bright = +e.target.value; $('brightVal').textContent = state.bright+'%'; applyBright(); };
+['#ff0000','#ff7a00','#ffd000','#00ff40','#00e5ff','#0040ff','#9000ff','#ff00a0'].forEach(c => {
+  const b = document.createElement('button'); b.className='sw'; b.style.background=c; b.title=c;
+  b.onclick = () => setColor(hexToRgb(c));
+  $('swatches').appendChild(b);
+});
+
+/* ---------- Animations synchronisées (générées par la page) ---------- */
+function hsvToRgb(h,s,v){ h=((h%1)+1)%1; const i=Math.floor(h*6), f=h*6-i, p=v*(1-s), q=v*(1-f*s), t=v*(1-(1-f)*s);
+  return [[v,t,p],[q,v,p],[p,v,t],[p,q,v],[t,p,v],[v,p,q]][i%6].map(x=>Math.round(x*255)); }
+const C = { rouge:[255,0,0], vert:[0,255,0], bleu:[0,0,255], jaune:[255,200,0], cyan:[0,255,255], violet:[160,0,255], blanc:[255,255,255], orange:[255,100,0] };
+const RGB3 = [C.rouge, C.vert, C.bleu];
+const SEPT = [C.rouge, C.vert, C.bleu, C.jaune, C.cyan, C.violet, C.blanc];
+const mix = (a, b, f) => a.map((x, i) => x + (b[i] - x) * f);
+const scale = (c, k) => c.map(x => x * k);
+const mine = () => [state.r, state.g, state.b];
+const smooth = f => 0.5 - 0.5 * Math.cos(f * Math.PI);  // fondu doux 0→1
+
+// p = nombre de « pas » écoulés (avance avec la vitesse)
+const saut     = L => p => L[Math.floor(p) % L.length];
+const fondu    = L => p => { const i = Math.floor(p); return mix(L[i % L.length], L[(i+1) % L.length], smooth(p - i)); };
+const respire  = c => p => scale(typeof c === 'function' ? c() : c, 0.03 + 0.97 * (0.5 - 0.5 * Math.cos(p * Math.PI)));
+const clignote = L => p => (p * 2) % 2 < 1 ? L[Math.floor(p) % L.length] : [0,0,0];
+
+// hasard reproductible : même résultat pour un même instant → animations synchronisées
+function rnd(a, b) { let h = (Math.imul(a | 0, 374761393) + Math.imul(b | 0, 668265263)) | 0;
+  h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; }
+function bruit(t, seed) { const i = Math.floor(t); return rnd(i, seed) + (rnd(i + 1, seed) - rnd(i, seed)) * smooth(t - i); }
+// k = numéro de l'appareil : chaque lampe a ses propres flammes / fusées
+function feuDeCamp(p, k) {
+  const v = 0.6 * bruit(p * 4, k * 7 + 1) + 0.4 * bruit(p * 11, k * 7 + 2);   // vacillement lent + rapide
+  return hsvToRgb(0.012 + 0.07 * v, 1, 0.35 + 0.65 * v);                      // braise rouge → flamme orange-jaune
+}
+function feuxArtifice(p, k) {
+  const i = Math.floor(p), f = p - i;
+  if (rnd(i, k + 50) < 0.3) return [0, 0, 0];               // pas de fusée sur ce créneau
+  const o = rnd(i, k + 100) * 0.45;                          // instant d'explosion, différent pour chaque lampe
+  if (f < o) return [0, 0, 0];
+  const e = f - o;
+  if (e < 0.05) return [255, 255, 255];                      // éclair blanc
+  const fade = Math.exp(-(e - 0.05) * 6) * (0.75 + 0.25 * rnd(Math.floor(p * 25), k));   // retombée qui scintille
+  return fade < 0.04 ? [0, 0, 0] : hsvToRgb(rnd(i, k + 200), rnd(i, k + 300) < 0.2 ? 0.3 : 1, fade);
+}
+const ANIMS = [
+  { h:'Ambiances' },
+  { id:'clock',  name:'🕐 Cercle horloge', fn: p => hsvToRgb(p / 14, 1, 1) },
+  { id:'music',  name:'🎵 Musique', hidden: true, fn: (p, k) => musicColor(k) },
+  { id:'wheel',  name:'🎨 Roue en rotation', fn: p => { const [h, s] = wheelSpin(p); return hsvToRgb(h, s, 1); } },
+  { id:'fire',   name:'🔥 Feu de camp', fn: feuDeCamp },
+  { id:'candle', name:'🕯️ Bougie', fn: (p, k) => { const v = 0.75 * bruit(p * 5, k + 11) + 0.25 * bruit(p * 17, k + 12);
+      return hsvToRgb(0.075 + 0.02 * v, 0.85, 0.45 + 0.4 * v); } },
+  { id:'lava',   name:'🌋 Lave', fn: (p, k) => hsvToRgb(0.01 + 0.05 * bruit(p * 1.2, k + 21), 1, 0.45 + 0.55 * bruit(p * 1.8, k + 22)) },
+  { h:'Nature' },
+  { id:'ocean',  name:'🌊 Océan', fn: (p, k) => hsvToRgb(0.5 + 0.13 * bruit(p * 0.7, k + 31), 1, 0.55 + 0.45 * bruit(p * 1.3, k + 32)) },
+  { id:'aurora', name:'🌌 Aurore boréale', fn: (p, k) => fondu([[0,255,110],[0,190,200],[120,0,255],[0,255,60],[200,0,180]])(p * 0.45 + k * 0.8) },
+  { id:'sunset', name:'🌅 Coucher de soleil', fn: (p, k) => fondu([[255,110,0],[255,40,80],[150,0,200],[255,40,0]])(p * 0.35 + k * 0.6) },
+  { id:'forest', name:'🌲 Forêt', fn: (p, k) => hsvToRgb(0.24 + 0.12 * bruit(p * 0.8, k + 41), 0.95, 0.5 + 0.5 * bruit(p * 1.6, k + 42)) },
+  { id:'storm',  name:'⛈️ Orage', fn: (p, k) => { const i = Math.floor(p * 2), f = p * 2 - i;
+      const flash = rnd(i, k + 51) < 0.25 && (f < 0.06 || (f > 0.12 && f < 0.16));       // double éclair
+      return flash ? [230,230,255] : hsvToRgb(0.66, 0.9, 0.08 + 0.12 * bruit(p, k + 52)); } },
+  { h:'Fêtes' },
+  { id:'fwork',  name:'🎆 Feux d\'artifice', fn: feuxArtifice },
+  { id:'xmas',   name:'🎄 Noël', fn: (p, k) => fondu([[255,0,0],[0,255,40],[255,180,90]])(p * 0.5 + k) },
+  { id:'hallow', name:'🎃 Halloween', fn: (p, k) => { const v = bruit(p * 3, k + 61);
+      return scale(v > 0.5 ? [255,90,0] : [130,0,255], 0.4 + 0.6 * bruit(p * 9, k + 62)); } },
+  { id:'love',   name:'💖 Saint-Valentin', fn: (p, k) => scale(mix([255,0,30],[255,60,160], bruit(p * 0.8, k + 71)), 0.15 + 0.85 * smooth((p % 2) < 1 ? p % 1 : 1 - p % 1)) },
+  { id:'belgium',name:'🇧🇪 Belgique', fn: (p, k) => saut([[0,0,0],[255,200,0],[255,0,0]])(p + k) },
+  { h:'Soirée' },
+  { id:'disco',  name:'🪩 Disco', fn: (p, k) => hsvToRgb(rnd(Math.floor(p * 2), k + 81), 1, 1) },
+  { id:'police', name:'🚨 Police', fn: (p, k) => [[255,0,0],[0,0,0],[255,0,0],[0,0,0],[0,0,255],[0,0,0],[0,0,255],[0,0,0]][(Math.floor(p * 8) + k * 4) % 8] },
+  { id:'strobe', name:'⚡ Stroboscope', fn: p => (p * 6) % 1 < 0.35 ? [255,255,255] : [0,0,0] },
+  { h:'Sauts' },
+  { id:'j3', name:'Saut RVB', fn: saut(RGB3) },
+  { id:'j7', name:'Saut 7 couleurs', fn: saut(SEPT) },
+  { h:'Fondus' },
+  { id:'f3', name:'Fondu RVB', fn: fondu(RGB3) },
+  { id:'f7', name:'Fondu 7 couleurs', fn: fondu(SEPT) },
+  ...['rouge','vert','bleu','jaune','cyan','violet','blanc'].map(c => ({ id:'b'+c, name:'Fondu '+c, fn: respire(C[c]) })),
+  { h:'Clignotements' },
+  { id:'c3', name:'Clignote RVB', fn: clignote(RGB3) },
+  { id:'c7', name:'Clignote 7 couleurs', fn: clignote(SEPT) },
+  ...['rouge','vert','bleu','blanc'].map(c => ({ id:'c'+c, name:'Clignote '+c, fn: clignote([C[c]]) })),
+];
+const ANIM = Object.fromEntries(ANIMS.filter(a => a.id).map(a => [a.id, a]));
+
+{
+  const icons = { Ambiances:'✨', Nature:'🌿', 'Fêtes':'🎉', 'Soirée':'🪩', Sauts:'⏭️', Fondus:'🌈', Clignotements:'💡' };
+  let chips = null;
+  ANIMS.forEach(a => {
+    if (a.hidden) return;
+    if (a.h) {
+      const row = document.createElement('div'); row.className = 'catrow';
+      row.innerHTML = `<span class="lab">${icons[a.h] || ''} ${a.h}</span><span class="chips"></span>`;
+      $('fxgrid').appendChild(row); chips = row.querySelector('.chips'); return;
+    }
+    const b = document.createElement('button');
+    // dans une ligne « Fondus », inutile de répéter « Fondu » sur chaque bouton
+    b.textContent = a.name.replace(/^(Saut|Fondu|Clignote) /, (m, w) => /RVB|7 couleurs/.test(a.name) ? m : '');
+    b.title = a.name; b.dataset.id = a.id;
+    b.onclick = () => startAnim(a.id);
+    chips.appendChild(b);
+  });
+}
+
+// Une seule horloge commune → tous les appareils restent synchronisés
+let clock = { p: 0, last: performance.now() };
+setInterval(() => {
+  const now = performance.now(), dt = (now - clock.last) / 1000; clock.last = now;
+  const sp = +$('anSpeed').value;
+  clock.p += dt / (3.2 - sp * 0.029);           // durée d'un pas : 3,2 s (lent) → 0,3 s (rapide)
+  autosave();
+  const c = devices.find(d => d.anim && d.anim.id === 'clock');
+  const h = c ? ((clock.p - c.anim.p0) / 14) % 1 : null;
+  const w = devices.find(d => d.anim && d.anim.id === 'wheel');
+  if (w) {
+    spinHS = wheelSpin(clock.p - w.anim.p0);
+    const a = spinHS[0] * 2 * Math.PI;
+    spinPos = [W/2 + Math.cos(a) * spinHS[1] * R, W/2 + Math.sin(a) * spinHS[1] * R];
+    clockHue = h; drawWheel();
+  } else if (spinPos) { spinPos = null; clockHue = h; drawWheel(); }
+  else if (h !== clockHue) { clockHue = h; drawWheel(); }
+  devices.forEach((d, k) => {
+    if (!d.anim || d.diy || !ready(d) || d.pending > 0) return;   // on n'empile pas les envois
+    if (now < (d.nextAt || 0)) return;                   // respecte la cadence max de la lampe
+    const rgb = ANIM[d.anim.id].fn(clock.p - d.anim.p0, k).map(x => clamp(x, 0, 255));
+    const frame = colorFrame(d, ...rgb);
+    const key = frame.join(',');
+    if (key === d.lastFrame) return;                     // inutile de renvoyer la même couleur
+    d.lastFrame = key;
+    d.nextAt = now + (d.proto.minGap || 60);
+    send(d, frame, true);
+  });
+}, 90);
+
+function autosave() {
+  const settings = JSON.stringify({ r: state.r, g: state.g, b: state.b, bright: state.bright,
+    anSpeed: $('anSpeed').value, speed: $('speed').value, target: savedTarget || target });
+  if (settings !== lastSaved.settings) { lastSaved.settings = settings; try { localStorage.setItem('settings', settings); } catch (e) {} }
+  const anims = store.get('anims', {});
+  devices.forEach(d => { if (d.char && d.device.gatt.connected) { if (d.anim) anims[d.device.id] = d.anim.id; else delete anims[d.device.id]; } });
+  const a = JSON.stringify(anims);
+  if (a !== lastSaved.anims) { lastSaved.anims = a; try { localStorage.setItem('anims', a); } catch (e) {} }
+}
+function startAnim(id) {
+  const t = targets();
+  if (!t.length) return log('Aucun appareil prêt dans ce groupe.');
+  // même point de départ pour tout le monde (y compris les appareils d'autres groupes déjà sur cette animation)
+  const p0 = clock.p;
+  devices.forEach(d => { if (d.anim && d.anim.id === id) d.anim.p0 = p0; });
+  nativeSel = null; fillNative();
+  t.forEach(d => { if (d.diy) diyStop(d);
+    d.anim = { id, p0 }; d.fx = null; d.whiteMode = false; d.lastFrame = null;
+    if (d.proto.bright) send(d, d.proto.bright(state.bright), true); });
+  log(`▶ ${ANIM[id].name} — ${target === '*' ? 'tout' : target} (${t.length} appareil${t.length>1?'s':''})`);
+  markPlaying();
+}
+function stopAnim() { each(d => { d.anim = null; }); log('■ Animations arrêtées — ' + (target === '*' ? 'tout' : target)); markPlaying(); }
+function markPlaying() {
+  const playing = new Set(targets().filter(d => d.anim).map(d => d.anim.id));
+  document.querySelectorAll('#fxgrid button').forEach(b => b.classList.toggle('playing', playing.has(b.dataset.id)));
+}
+$('anStop').onclick = stopAnim;
+
+/* ---------- Animations intégrées (par type de lampe) ---------- */
+let nativeSel = null; // 'protoId:valeur' de la dernière animation intégrée lancée
+function fillNative() {
+  const card = $('nativeCard'), grid = $('nativeGrid');
+  grid.innerHTML = '';
+  if (target === '*') { card.classList.add('hidden'); return; }   // « Tout » : seulement les synchronisées
+  const protos = [...new Map(targets().map(d => [d.proto.id, d.proto])).values()].filter(p => p.effects && p.effects.length);
+  if (!protos.length) { card.classList.add('hidden'); return; }
+  card.classList.remove('hidden');
+  $('nativeTitle').textContent = 'Animations intégrées ' + (target.toLowerCase() === 'rideau' ? 'du rideau' : target.toLowerCase() === 'sticks' ? 'des sticks' : 'du groupe ' + target);
+  const themed = protos.some(p => p.effects.some(e => e[2]));
+  grid.className = themed ? '' : 'fxgrid';
+  const button = (p, v, label, title, box) => {
+    const b = document.createElement('button');
+    const key = p.id + ':' + v;
+    b.textContent = label; b.title = title; b.dataset.key = key;
+    if (key === nativeSel) b.classList.add('playing');
+    b.onclick = () => { nativeSel = key; sendNative(); fillNative(); };
+    box.appendChild(b);
+  };
+  protos.forEach(p => {
+    if (protos.length > 1) grid.insertAdjacentHTML('beforeend', `<h3>${p.name}</h3>`);
+    if (!p.effects.some(e => e[2])) { p.effects.forEach(([v, n]) => button(p, v, n, n, grid)); return; }
+    // une ligne par thème : nom à gauche, variantes numérotées à droite
+    const byCat = new Map();
+    p.effects.forEach(e => { if (!byCat.has(e[2])) byCat.set(e[2], []); byCat.get(e[2]).push(e); });
+    byCat.forEach((list, cat) => {
+      const row = document.createElement('div'); row.className = 'catrow';
+      row.innerHTML = `<span class="lab">${cat}</span><span class="chips"></span>`;
+      const chips = row.querySelector('.chips');
+      list.forEach(([v, n], k) => button(p, v, list.length > 1 ? String(k + 1) : '▶ Lancer', `${n} (n°${v})`, chips));
+      grid.appendChild(row);
+    });
+  });
+}
+function sendNative() {
+  if (!nativeSel) return;
+  const [pid, mv] = nativeSel.split(':');
+  const m = +mv, s = +$('speed').value;
+  each(d => {
+    const p = d.proto; if (p.id !== pid) return;
+    d.anim = null;
+    if (p.effectFrames) { d.fx = m; p.effectFrames(m, s, state.bright).forEach(f => send(d, f)); }
+    else if (p.speedInEffect) send(d, p.effect(m, clamp(32 - s*0.31, 1, 31)));
+    else { send(d, p.effect(m)); if (p.speed) send(d, p.speed(s)); }
+  });
+  markPlaying();
+}
+$('speed').oninput = throttle(() => {
+  if (!nativeSel) return;
+  const [pid] = nativeSel.split(':');
+  each(d => {
+    const p = d.proto; if (p.id !== pid || d.anim) return;
+    if (p.effectFrames) { if (d.fx) p.effectFrames(d.fx, +$('speed').value, state.bright).forEach(f => send(d, f)); }
+    else if (p.speed && !p.speedInEffect) send(d, p.speed(+$('speed').value));
+  });
+  if (PROTOCOLS.find(p => p.id === pid)?.speedInEffect) sendNative();
+}, 150);
+
+/* ---------- Mode musique ---------- */
+const music = { ctx: null, stream: null, an: null, buf: [], beatAt: 0, hue: 0, avg: 0, level: 0, timer: null };
+const mSave = () => store.set('music', { src: $('mSrc').value, srcLabel: $('mSrc').selectedOptions[0]?.textContent,
+  mode: $('mMode').value, sens: $('mSens').value, delay: $('mDelay').value });
+async function listSources(askPermission) {
+  const sel = $('mSrc'), saved = store.get('music', {});
+  let devs = [];
+  try {
+    // on lit la liste PENDANT que l'accès est ouvert (avec « cette fois-ci », les noms disparaissent dès qu'on l'arrête)
+    const tmp = askPermission ? await navigator.mediaDevices.getUserMedia({ audio: true }) : null;
+    devs = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'audioinput');
+    if (tmp) tmp.getTracks().forEach(t => t.stop());
+  } catch (e) { log('Accès audio refusé : ' + e.message); }
+  const named = devs.some(d => d.label);
+  sel.innerHTML = (IS_ANDROID ? '<option value="__phone">📱 Son du téléphone (Spotify, YouTube…)</option>'
+                              : '<option value="__screen">🖥️ Son du PC (partage d\'écran avec audio)</option>') +
+    (named ? devs.map(d => `<option value="${d.deviceId}">${/voicemeeter/i.test(d.label) ? '🎛️ ' : '🎤 '}${d.label}</option>`).join('')
+           : (IS_ANDROID ? '<option value="__ask">🎤 Micro du téléphone</option>'
+                         : '<option value="__ask">🔓 Autoriser l\'accès audio pour voir Voicemeeter…</option>'));
+  // choix : celui mémorisé, sinon Voicemeeter Out B1, sinon une sortie Voicemeeter
+  const opts = [...sel.options];
+  const pick = opts.find(o => o.value === saved.src) || opts.find(o => o.textContent === saved.srcLabel)
+    || opts.find(o => /voicemeeter out b1/i.test(o.textContent)) || opts.find(o => /voicemeeter out/i.test(o.textContent))
+    || opts.find(o => o.value === '__phone');
+  if (pick) sel.value = pick.value;
+}
+async function openSource() {
+  const v = $('mSrc').value;
+  if (v === '__ask') {                              // une seule demande, jamais en boucle
+    await listSources(true);
+    if ($('mSrc').value === '__ask') throw new Error('accès au son non accordé');
+    return openSource();
+  }
+  const raw = { echoCancellation: false, noiseSuppression: false, autoGainControl: false };
+  if (v === '__screen') {
+    const s = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: raw, systemAudio: 'include' });
+    s.getVideoTracks().forEach(t => t.stop());
+    if (!s.getAudioTracks().length) throw new Error('aucun son partagé : coche « Partager l\'audio du système »');
+    return s;
+  }
+  return navigator.mediaDevices.getUserMedia({ audio: { deviceId: { exact: v }, ...raw } });
+}
+async function musicEngine() {     // ouvre la source si besoin ; renvoie true si l'écoute tourne
+  try {
+    if (!music.stream && !music.phone && $('mSrc').value === '__phone') {
+      const res = AndroidAudio.start();
+      if (res !== 'ok') throw new Error('son du téléphone inaccessible (' + res + ') — choisis le micro comme source');
+      music.phone = true;
+      music.timer = setInterval(musicTick, 30);
+      log('🎵 Écoute : son du téléphone');
+    } else if (!music.stream && !music.phone) {
+      music.stream = await openSource();
+      music.ctx = new AudioContext();
+      music.an = music.ctx.createAnalyser(); music.an.fftSize = 2048; music.an.smoothingTimeConstant = 0.55;
+      music.ctx.createMediaStreamSource(music.stream).connect(music.an);
+      music.stream.getTracks().forEach(tr => tr.onended = musicStop);
+      music.timer = setInterval(musicTick, 30);
+      log('🎵 Écoute : ' + $('mSrc').selectedOptions[0].textContent);
+    }
+  } catch (e) { $('mStatus').textContent = 'Impossible : ' + e.message; log('✗ Musique : ' + e.message); return false; }
+  return true;
+}
+async function musicStart() {
+  const t = targets(); if (!t.length) return log('Aucun appareil prêt dans cet onglet.');
+  if (!await musicEngine()) return;
+  const p0 = clock.p;
+  nativeSel = null;
+  t.forEach(d => { d.anim = { id: 'music', p0 }; d.fx = null; d.lastFrame = null; });
+  $('mStatus').textContent = '♪ en cours'; markPlaying(); fillNative(); mSave();
+}
+function musicStop() {
+  devices.forEach(d => { if (d.anim && d.anim.id === 'music') d.anim = null; });
+  music.keep = false; if (typeof tempoFollowOff === 'function') tempoFollowOff();
+  if (music.timer) clearInterval(music.timer);
+  if (music.stream) music.stream.getTracks().forEach(t => t.stop());
+  if (music.ctx) music.ctx.close();
+  if (music.phone) AndroidAudio.stop();
+  Object.assign(music, { ctx: null, stream: null, an: null, timer: null, buf: [], phone: false, beats: [], bpm: 0 });
+  $('mStatus').textContent = ''; drawMeter(0, 0, 0, false); markPlaying();
+}
+// Analyse ~33 fois/s : énergie par bande, détection des battements, couleur à jouer
+function musicTick() {
+  if (!devices.some(d => d.anim && d.anim.id === 'music') && !music.keep) return musicStop();
+  let raw;
+  if (music.phone) {
+    raw = (AndroidAudio.bands() || '0,0,0').split(',').map(Number);
+  } else {
+    const an = music.an, f = new Uint8Array(an.frequencyBinCount);
+    an.getByteFrequencyData(f);
+    const hz = music.ctx.sampleRate / an.fftSize;
+    const band = (a, b) => { let s = 0, n = 0; for (let i = Math.floor(a / hz); i <= Math.ceil(b / hz); i++) { s += f[i]; n++; } return s / n / 255; };
+    raw = [band(30, 150), band(150, 2000), band(2000, 9000)];
+  }
+  const band = (a) => raw[a === 30 ? 0 : a === 150 ? 1 : 2];
+  const sens = +$('mSens').value / 100;
+  const gain = 0.6 + sens * 2.4;
+  const bass = Math.min(1, band(30, 150) * gain), mid = Math.min(1, band(150, 2000) * gain * 1.4), high = Math.min(1, band(2000, 9000) * gain * 2.2);
+  const vol = Math.min(1, (bass + mid + high) / 2);
+  // battement : basses nettement au-dessus de leur moyenne récente
+  music.avg = music.avg * 0.93 + bass * 0.07;
+  const now = performance.now();
+  const beat = bass > 0.12 && bass > music.avg * (1.55 - sens * 0.4) && now - music.beatAt > 200;
+  if (beat) {
+    music.beatAt = now; music.hue = (music.hue + 0.18 + Math.random() * 0.35) % 1;
+    // tempo : médiane des écarts entre les derniers battements, ramenée entre 70 et 180 BPM
+    music.beats = (music.beats || []).concat(now).slice(-12);
+    const gaps = music.beats.slice(1).map((t, i) => t - music.beats[i]).filter(g => g > 250 && g < 1500).sort((a, b) => a - b);
+    if (gaps.length >= 3) {
+      let bpm = 60000 / gaps[Math.floor(gaps.length / 2)];
+      while (bpm < 70) bpm *= 2; while (bpm > 180) bpm /= 2;
+      music.bpm = music.bpm ? music.bpm * 0.7 + bpm * 0.3 : bpm;
+    }
+  }
+  const flash = Math.exp(-(now - music.beatAt) / 260);               // éclat qui retombe après chaque battement
+  let hsv;
+  switch ($('mMode').value) {
+    case 'beat':    hsv = [music.hue, 1, 0.15 + 0.85 * flash]; break;
+    case 'rainbow': hsv = [(now / 12000) % 1, 1, 0.1 + 0.9 * Math.max(flash, bass)]; break;
+    case 'volume':  { const [h, s] = rgbToHsv(state.r, state.g, state.b); hsv = [h, s, 0.05 + 0.95 * vol]; break; }
+    case 'freq':    hsv = null; break;
+  }
+  const rgb = hsv ? hsvToRgb(...hsv) : [bass, mid, high].map(x => Math.round(255 * Math.pow(x, 1.3)));
+  music.buf.push({ t: now, rgb, hueShift: $('mMode').value === 'beat' });
+  while (music.buf.length > 40) music.buf.shift();
+  drawMeter(bass, mid, high, flash > 0.6);
+  drawTempo(now);
+}
+// couleur à afficher maintenant, en tenant compte du délai des enceintes
+function musicColor(k) {
+  const due = performance.now() - +$('mDelay').value;
+  let e = null; for (const x of music.buf) { if (x.t <= due) e = x; else break; }
+  if (!e) return [0, 0, 0];
+  if (!e.hueShift || !k) return e.rgb;
+  const [h, s, v] = rgbToHsv(...e.rgb); return hsvToRgb(h + k * 0.12, s, v);   // couleurs décalées d'une lampe à l'autre
+}
+// ligne de tempo : un repère traverse la barre une fois par temps, et repart à chaque battement
+function drawTempo(now) {
+  const cv = $('mTempo'), c = cv.getContext('2d'), W2 = cv.width, H2 = cv.height;
+  c.clearRect(0, 0, W2, H2);
+  $('mBpm').textContent = music.bpm ? `♩ ${Math.round(music.bpm)} BPM` : '♩ — BPM';
+  if (!music.bpm) return;
+  const period = 60000 / music.bpm, ph = ((now - music.beatAt) % period) / period;
+  for (let i = 1; i < 4; i++) { c.fillStyle = '#2b2f3a'; c.fillRect(W2 * i / 4, 6, 2, H2 - 12); }
+  c.fillStyle = `hsl(${music.hue * 360},100%,60%)`;
+  c.fillRect(ph * (W2 - 8), 2, 8, H2 - 4);
+}
+function drawMeter(b, m, h, beat) {
+  const cv = $('mMeter'), c = cv.getContext('2d'), W2 = cv.width, H2 = cv.height;
+  c.clearRect(0, 0, W2, H2);
+  [[b, '#ff4d4d'], [m, '#3ecf8e'], [h, '#7c9cff']].forEach(([x, col], i) => {
+    c.fillStyle = col; c.fillRect(0, i * (H2 / 3) + 2, W2 * x, H2 / 3 - 4);
+  });
+  if (beat) { c.fillStyle = '#fff'; c.fillRect(W2 - 14, 4, 10, H2 - 8); }
+}
+$('mStart').onclick = musicStart;
+$('mStop').onclick = musicStop;
+$('mRefresh').onclick = () => listSources(true);
+$('mDelay').oninput = e => { $('mDelayVal').textContent = e.target.value + ' ms'; mSave(); };
+['mSrc', 'mMode', 'mSens'].forEach(id => $(id).addEventListener('change', () => {
+  mSave(); if (id === 'mSrc' && (music.stream || music.phone)) { musicStop(); log('Source changée : clique sur Démarrer.'); }
+}));
+{
+  const st = store.get('music', {});
+  if (st.mode) $('mMode').value = st.mode;
+  if (st.sens) $('mSens').value = st.sens;
+  if (st.delay) { $('mDelay').value = st.delay; $('mDelayVal').textContent = st.delay + ' ms'; }
+  if (navigator.mediaDevices) listSources(false);
+}
+
+/* ---------- Dessin sur le rideau (app Android : paquets d'image de 241 octets) ----------
+   Protocole d'après github.com/nzrutman/hello_fairy_ble (PROTOCOL.md) :
+   D0 = [direction, luminosité, vitesse, action] ; image : action 3, 0, six paquets DA, 4, (≈1,2 s), 1
+   DA = entrées [index_hi, index_lo, couleur], 79 par paquet ; index rideau = x*20 + y
+   couleur : 0–180 = teinte, 254 = éteint, 255 = blanc. Le rideau répond « aa <code> 00 … » à chaque commande. */
+const N = 20, OFF = 254, WHITE = 255;
+let diyImg = new Array(N * N).fill(OFF);
+const sleep = ms => new Promise(res => setTimeout(res, ms));
+const hueByte = deg => Math.round((((deg % 360) + 360) % 360) / 2) % 181;
+function rgbToByte(r, g, b) {
+  const [h, s, v] = rgbToHsv(r, g, b);
+  if (v < 0.15) return OFF;
+  if (s < 0.25) return WHITE;
+  return hueByte(h * 360);
+}
+function drawDiy() {
+  const cv = $('diyCanvas'), cx = cv.getContext('2d'), k = cv.width / N;
+  cx.fillStyle = '#000'; cx.fillRect(0, 0, cv.width, cv.width);
+  for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
+    const v = diyImg[r * N + c];
+    cx.fillStyle = v === OFF ? '#1a1d24' : v === WHITE ? '#fff' : `hsl(${v * 2},100%,50%)`;
+    cx.beginPath(); cx.arc((c + .5) * k, (r + .5) * k, k * (v === OFF ? .18 : .4), 0, 2 * Math.PI); cx.fill();
+  }
+}
+// ------ modèles (angle 0 = midi, sens des aiguilles d'une montre)
+const cellAngle = (r, c) => (Math.atan2((c + .5) - N/2, -((r + .5) - N/2)) * 180 / Math.PI + 360) % 360;
+const cellDist  = (r, c) => Math.hypot((c + .5) - N/2, (r + .5) - N/2);
+const onRing = (r, c, rad = 8.2) => Math.abs(cellDist(r, c) - rad) < 0.75;
+function model(kind, t = 0) {
+  const img = new Array(N * N).fill(OFF), mine = rgbToByte(state.r, state.g, state.b);
+  for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
+    const i = r * N + c, a = cellAngle(r, c);
+    if (kind === 'ring'   && onRing(r, c)) img[i] = mine;
+    if (kind === 'chroma' && onRing(r, c)) img[i] = hueByte(a);
+    if (kind === 'spin'   && onRing(r, c)) img[i] = hueByte(a + t * 30);
+    if (kind === 'clock') {
+      const hand = (t * 30) % 360;                                  // l'aiguille avance de 30° par image
+      if (onRing(r, c)) img[i] = hueByte(a);
+      const d = cellDist(r, c), diff = Math.abs(((a - hand + 540) % 360) - 180);
+      if (d < 7.2 && d > 0.6 && diff * Math.PI / 180 * d < 0.7) img[i] = WHITE;
+      if (d < 0.8) img[i] = WHITE;
+    }
+    if (kind === 'tempo' && (c === 0 || c === 1)) img[i] = mine;    // ligne verticale que le rideau fera défiler
+  }
+  if (kind === 'test') {
+    for (let c = 3; c < 16; c++) img[10 * N + c] = img[9 * N + c] = 0;
+    for (let k = 0; k < 5; k++) { img[(9 - k) * N + 16 - k] = img[(10 + k) * N + 16 - k] = 0; }
+    for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) img[r * N + c] = 60;
+  }
+  return img;
+}
+// ------ envoi
+function devIndex(r, c) {
+  let x = c, y = r;
+  if ($('diyFlipX').checked) x = N - 1 - x;
+  if ($('diyFlipY').checked) y = N - 1 - y;
+  if ($('diySwap').checked) [x, y] = [y, x];
+  return x * N + y;
+}
+const FAIRY_NOTIFY = '49535343-1e4d-4bd9-ba61-23c647249616';
+async function listen(d) {
+  if (d.listening === d.device.gatt) return;
+  try {
+    const ch = await (await d.device.gatt.getPrimaryService(u(d.proto.service))).getCharacteristic(FAIRY_NOTIFY);
+    await ch.startNotifications();
+    ch.addEventListener('characteristicvaluechanged', ev => {
+      const b = new Uint8Array(ev.target.value.buffer);
+      log(`← rideau : ${hex(b.slice(0, 12))}${b.length > 12 ? ' …' : ''}`);
+      if (d.ackWait && b[0] === 0xaa && b[1] === d.ackWait.cmd) { const w = d.ackWait; d.ackWait = null; w.res(true); }
+      if (b[0] === 0xaa && b[1] === 0x00 && b.length > 30) {
+        const p = b.slice(3);
+        log(`ℹ Le rideau annonce : ${(p[20] << 8) | p[21]} LED, ${p[22]} colonnes, ${p[24]} lignes, type DIY ${p[26]}`);
+      }
+    });
+    d.listening = d.device.gatt;
+  } catch (e) { log('Écoute des réponses impossible : ' + e.message); }
+}
+async function rawWrite(d, bytes) {
+  const data = new Uint8Array(bytes), p = d.char.properties;
+  if (bytes.length > 20) log(`→ image ${bytes.length} o`); else log(`→ ${hex(bytes)}`);
+  await writeRetry(d.char, data, bytes.length > 20 || !p.write ? 'noresp' : 'resp');
+}
+function waitAck(d, cmd, ms) {
+  return new Promise(res => {
+    const w = { cmd, res }; d.ackWait = w;
+    setTimeout(() => { if (d.ackWait === w) { d.ackWait = null; res(false); } }, ms);
+  });
+}
+async function step(d, bytes, ms = 2500) {
+  const ack = waitAck(d, bytes[1], ms);
+  await rawWrite(d, bytes);
+  const ok = await ack;
+  if (!ok) log(`… pas de réponse du rideau à ${hex(bytes.slice(0, 2))}`);
+  return ok;
+}
+function exclusive(d, fn) {               // rien d'autre n'est envoyé à cet appareil pendant fn
+  const run = d.queue.then(fn);
+  d.queue = run.catch(() => {});
+  return run;
+}
+const d0 = (dir, speed, action) => fairy([0xaa, 0xd0, 0x04, dir, clamp(state.bright, 1, 100), clamp(speed, 1, 100), action]);
+async function uploadNow(d, img, finalDir, finalSpeed) {
+  const mtu = d.device.gatt.mtu;
+  if (mtu && mtu < 244) throw new Error(`MTU : ce téléphone limite les paquets à ${mtu - 3} octets (il en faut 241)`);
+  const entries = [];
+  for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) entries.push([devIndex(r, c), img[r * N + c]]);
+  entries.sort((a, b) => a[0] - b[0]);
+  await listen(d);
+  const v = $('diyVar').value, dir = +$('diyDir').value;
+  const full = a => d0(dir, 100, a), short = a => fairy([0xaa, 0xd0, 0x01, a]);
+  const last = () => d0(finalDir ?? dir, finalSpeed ?? 100, 1);
+  const d7 = (slot, st) => fairy([0xaa, 0xd7, 0x02, slot, st]);
+  const packets = async () => {
+    for (let i = 0, n = 1; i < entries.length; i += 79, n++) {
+      const pl = entries.slice(i, i + 79).flatMap(([idx, col]) => [idx >> 8, idx & 0xff, col]);
+      if (!await step(d, fairy([0xaa, 0xda, pl.length, ...pl]), 3000)) {
+        if (!d.device.gatt.connected) throw new Error('le rideau s\'est déconnecté pendant l\'envoi');
+        throw new Error(`le rideau n'a pas accusé réception du paquet d'image ${n}/6`);
+      }
+    }
+  };
+  if (v === 'A')      { await step(d, full(3)); await step(d, full(0)); await packets(); await step(d, full(4)); await sleep(1200); await step(d, last()); }
+  else if (v === 'B') { await step(d, short(3)); await step(d, short(0)); await packets(); await step(d, short(4)); await sleep(1200); await step(d, last()); }
+  else                { await step(d, full(7)); await step(d, d7(1, 0)); await step(d, full(0)); await packets(); await step(d, d7(1, 2)); await sleep(1200); await step(d, last()); }
+}
+function uploadImage(d, img, token, finalDir, finalSpeed) {
+  return exclusive(d, () => {
+    if (d.diy !== token) return;
+    if (!d.char || !d.device.gatt.connected) throw new Error('rideau déconnecté');
+    return uploadNow(d, img, finalDir, finalSpeed);
+  });
+}
+const diyTargets = () => targets().filter(d => d.proto.id === 'fairy');
+const diyStatus = t => $('diyStatus').textContent = t;
+function diyStop(d) { d.diy = null; tempoFollowOff(); }
+// ------ ligne de tempo : vitesse de défilement réglée par le tempo de la musique
+let tempoTimer = null, tempoSent = 0;
+const tempoSpeedFromBpm = bpm => clamp(bpm / 2, 1, 100);       // 120 BPM → 60
+function tempoFollowOff() { if (tempoTimer) clearInterval(tempoTimer); tempoTimer = null; if (music.keep) { music.keep = false; } }
+async function tempoFollowOn(list, token) {
+  if (!await musicEngine()) { diyStatus('Choisis une source dans 🎵 Mode musique pour suivre le tempo.'); return; }
+  music.keep = true;
+  tempoTimer = setInterval(() => {
+    if (!list.some(d => d.diy === token)) return tempoFollowOff();
+    if (!music.bpm) return;
+    const sp = tempoSpeedFromBpm(music.bpm);
+    $('tempoSpeed').value = sp; $('tempoSpeedVal').textContent = sp;
+    if (Math.abs(sp - tempoSent) < 3) return;
+    tempoSent = sp;
+    list.filter(d => d.diy === token && ready(d)).forEach(d =>
+      exclusive(d, () => step(d, d0(+$('tempoDir').value, sp, 1), 1500)).catch(() => {}));
+    diyStatus(`Ligne de tempo — ${Math.round(music.bpm)} BPM`);
+  }, 1500);
+}
+async function diyRun(kind) {
+  const list = diyTargets();
+  if (!list.length) return diyStatus('Aucun rideau connecté dans cet onglet.');
+  const animated = kind === 'clock' || kind === 'spin';
+  const token = {};
+  tempoFollowOff();
+  list.forEach(d => { d.anim = null; d.diy = token; });
+  markPlaying();
+  let t = 0;
+  do {
+    const img = kind === 'draw' ? diyImg.slice() : model(kind, t);
+    if (kind !== 'draw') { diyImg = img; drawDiy(); }
+    diyStatus(animated ? `Animation… image ${t + 1}` : 'Envoi…');
+    const tempo = kind === 'tempo';
+    const sp = +$('tempoSpeed').value;
+    try {
+      await Promise.all(list.filter(d => d.diy === token && ready(d)).map(d =>
+        uploadImage(d, img, token, tempo ? +$('tempoDir').value : undefined, tempo ? sp : undefined)));
+    } catch (e) {
+      log('✗ Dessin : ' + e.message);
+      diyStatus('Échec : ' + e.message);
+      list.forEach(d => {
+        if (d.diy === token) d.diy = null;
+        if (ready(d)) { send(d, d.proto.power(true), true); send(d, colorFrame(d, state.r, state.g, state.b), true); }
+      });
+      return;
+    }
+    if (tempo) {
+      tempoSent = sp;
+      diyStatus('Ligne envoyée ✓');
+      if ($('tempoFollow').checked) await tempoFollowOn(list, token);
+    }
+    t++;
+  } while (animated && list.some(d => d.diy === token));
+  if (!animated && kind !== 'tempo') diyStatus('Envoyé ✓');
+  if (animated) diyStatus('Arrêté.');
+}
+let diyBusy = false;
+const diyGo = async kind => {
+  if (diyBusy) { diyTargets().forEach(d => d.diy = null); await sleep(50); }   // un nouveau choix remplace l'animation en cours
+  diyBusy = true; try { await diyRun(kind); } finally { diyBusy = false; }
+};
+document.querySelectorAll('[data-diy]').forEach(b => b.onclick = () => diyGo(b.dataset.diy));
+$('diySend').onclick = () => diyGo('draw');
+$('diyStop').onclick = () => { diyTargets().forEach(diyStop); diyStatus('Arrêt après l\'image en cours…'); };
+$('diyClear').onclick = () => { diyImg.fill(OFF); drawDiy(); };
+$('tempoSpeed').oninput = e => {
+  $('tempoSpeedVal').textContent = e.target.value;
+  const list = diyTargets().filter(d => d.diy && ready(d));
+  list.forEach(d => exclusive(d, () => step(d, d0(+$('tempoDir').value, +e.target.value, 1), 1500)).catch(() => {}));
+};
+$('diyDiag').onclick = async () => {
+  for (const d of diyTargets()) await exclusive(d, async () => {
+    await listen(d);
+    log(`ℹ Paquets possibles : ${(d.device.gatt.mtu || 23) - 3} octets (il en faut 241 pour le dessin)`);
+    await rawWrite(d, [0xaa, 0x00, 0x00, 0xaa]); await sleep(800);
+  }).catch(e => log('✗ Diagnostic : ' + e.message));
+};
+$('diyColorBack').onclick = () => diyTargets().forEach(d => { diyStop(d); send(d, d.proto.power(true)); send(d, colorFrame(d, state.r, state.g, state.b)); });
+{ // dessin au doigt
+  const cv = $('diyCanvas');
+  const paint = e => {
+    const rc = cv.getBoundingClientRect();
+    const c = Math.floor((e.clientX - rc.left) / rc.width * N), r = Math.floor((e.clientY - rc.top) / rc.height * N);
+    if (r < 0 || c < 0 || r >= N || c >= N) return;
+    diyImg[r * N + c] = ($('diyErase').checked || (e.buttons & 2)) ? OFF : rgbToByte(state.r, state.g, state.b);
+    drawDiy();
+  };
+  cv.addEventListener('contextmenu', e => e.preventDefault());
+  cv.addEventListener('pointerdown', e => { cv.setPointerCapture(e.pointerId); paint(e); });
+  cv.addEventListener('pointermove', e => { if (cv.hasPointerCapture(e.pointerId)) paint(e); });
+  ['diyFlipX', 'diyFlipY', 'diySwap', 'diyDir', 'diyVar', 'tempoFollow', 'tempoDir'].forEach(id => {
+    const el = $(id), v = store.get('diy3_' + id);
+    if (v !== undefined && v !== null) { if (el.type === 'checkbox') el.checked = v; else el.value = v; }
+    el.addEventListener('change', () => store.set('diy3_' + id, el.type === 'checkbox' ? el.checked : el.value));
+  });
+  drawDiy();
+}
+
+/* ---------- Explorateur ---------- */
+let expTarget = null;
+function fillExpDev() { $('expDev').innerHTML = devices.map((d,i)=>`<option value="${i}">${d.device.name||'Sans nom'}</option>`).join(''); }
+$('expScan').onclick = async () => {
+  const d = devices[+$('expDev').value]; if (!d) return log('Connecte d\'abord un appareil.');
+  if (!d.device.gatt.connected) await openGatt(d);
+  const tree = $('tree'); tree.innerHTML = '';
+  for (const s of await d.server.getPrimaryServices()) {
+    tree.insertAdjacentHTML('beforeend', `<div><b>Service ${shortUuid(s.uuid)}</b></div>`);
+    let chars = []; try { chars = await s.getCharacteristics(); } catch(e) {}
+    for (const c of chars) {
+      const pr = ['read','write','writeWithoutResponse','notify','indicate'].filter(k => c.properties[k]).join(', ');
+      const el = document.createElement('div'); el.className='ch';
+      el.textContent = `   └ ${shortUuid(c.uuid)}  [${pr}]`;
+      el.onclick = async () => {
+        tree.querySelectorAll('.ch').forEach(x=>x.classList.remove('sel')); el.classList.add('sel');
+        expTarget = { d, c };
+        log(`Cible : ${shortUuid(s.uuid)} / ${shortUuid(c.uuid)}`);
+        if (c.properties.notify || c.properties.indicate) {
+          try { await c.startNotifications(); c.addEventListener('characteristicvaluechanged', ev =>
+            log(`← ${shortUuid(c.uuid)} : ${hex(new Uint8Array(ev.target.value.buffer))}`)); } catch(e) {}
+        }
+        if (c.properties.read) { try { const v = await c.readValue(); log(`lu ${shortUuid(c.uuid)} : ${hex(new Uint8Array(v.buffer))}`); } catch(e){} }
+      };
+      tree.appendChild(el);
+    }
+  }
+};
+$('hexSend').onclick = () => {
+  if (!expTarget) return log('Choisis d\'abord une caractéristique dans la liste.');
+  const bytes = $('hex').value.trim().split(/[\s,:]+/).filter(Boolean).map(h=>parseInt(h,16));
+  if (bytes.some(isNaN)) return log('Hex invalide.');
+  const { d, c } = expTarget;
+  send({ ...d, char: c, proto: null }, bytes);
+};
+
+/* ---------- Init ---------- */
+if (!navigator.bluetooth) { $('nobt').classList.remove('hidden'); $('btnAdd').disabled = true; }
+$('btnAdd').onclick = connect;
+$('btnRe').onclick = reconnectKnown;
+updateRe();
+{
+  const st = store.get('settings', {});
+  [state.r, state.g, state.b] = [st.r ?? 255, st.g ?? 122, st.b ?? 0];
+  state.bright = st.bright ?? 100;
+  $('bright').value = state.bright; $('brightVal').textContent = state.bright + '%';
+  if (st.anSpeed) $('anSpeed').value = st.anSpeed;
+  if (st.speed) $('speed').value = st.speed;
+  if (st.target && st.target !== '*') savedTarget = st.target;
+  $('preview').style.background = `rgb(${state.r},${state.g},${state.b})`;
+  const [h, s] = rgbToHsv(state.r, state.g, state.b);
+  wheelPos = [W/2 + Math.cos(h*2*Math.PI)*s*R, W/2 + Math.sin(h*2*Math.PI)*s*R]; drawWheel();
+}
+renderTargets();
+if (navigator.bluetooth) autoReconnect();
+window.__androidPermissionsChanged = () => { autoReconnect(); listSources(false); };
+if (IS_ANDROID) document.querySelectorAll('.pc-only').forEach(e => e.remove());
+log('Lampes — version 18' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
+</script>
+</body>
+</html>
