@@ -2,6 +2,11 @@ package be.lampes.app;
 
 import android.Manifest;
 import android.app.Activity;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.view.View;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.os.Build;
@@ -29,6 +34,16 @@ public class MainActivity extends Activity {
     private WebView web;
     private BleBridge ble;
     private AudioBridge audio;
+    private BroadcastReceiver stopReceiver;
+
+    /** WebView qui reste « visible » quand l'app passe en arrière-plan : la page n'est ni ralentie ni mise en pause. */
+    static class KeepAliveWebView extends WebView {
+        KeepAliveWebView(Context c) { super(c); }
+        @Override
+        protected void onWindowVisibilityChanged(int visibility) {
+            if (visibility != View.GONE) super.onWindowVisibilityChanged(visibility);
+        }
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -38,7 +53,8 @@ public class MainActivity extends Activity {
         getWindow().setStatusBarColor(Color.parseColor("#111318"));
         getWindow().setNavigationBarColor(Color.parseColor("#111318"));
 
-        web = new WebView(this);
+        web = new KeepAliveWebView(this);
+        if (Build.VERSION.SDK_INT >= 26) web.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, false);
         web.setBackgroundColor(Color.parseColor("#111318"));
         setContentView(web);
 
@@ -69,7 +85,16 @@ public class MainActivity extends Activity {
         web.addJavascriptInterface(ble, "AndroidBle");
         web.addJavascriptInterface(audio, "AndroidAudio");
 
+        // bouton « Arrêter » de la notification
+        stopReceiver = new BroadcastReceiver() {
+            @Override public void onReceive(Context c, Intent i) { finishAndRemoveTask(); }
+        };
+        IntentFilter f = new IntentFilter(LampesService.STOP);
+        if (Build.VERSION.SDK_INT >= 33) registerReceiver(stopReceiver, f, Context.RECEIVER_NOT_EXPORTED);
+        else registerReceiver(stopReceiver, f);
+
         askPermissions();
+        LampesService.start(this);
         web.loadUrl("https://appassets.androidplatform.net/assets/index.html");
     }
 
@@ -82,6 +107,7 @@ public class MainActivity extends Activity {
             need.add(Manifest.permission.ACCESS_FINE_LOCATION);
         }
         need.add(Manifest.permission.RECORD_AUDIO);
+        if (Build.VERSION.SDK_INT >= 33) need.add(Manifest.permission.POST_NOTIFICATIONS);
         List<String> missing = new ArrayList<>();
         for (String p : need) {
             if (checkSelfPermission(p) != PackageManager.PERMISSION_GRANTED) missing.add(p);
@@ -92,18 +118,27 @@ public class MainActivity extends Activity {
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        LampesService.start(this);   // relancé avec le micro autorisé, pour le mode musique en arrière-plan
         // la page retente la reconnexion des lampes une fois les autorisations accordées
         web.evaluateJavascript("window.__androidPermissionsChanged && window.__androidPermissionsChanged()", null);
     }
 
     @Override
     public void onBackPressed() {
-        // retour = mettre l'app en arrière-plan (pas la fermer, sinon les lampes se déconnectent)
+        // retour = mettre l'app en arrière-plan : tout continue grâce au service (notification « Lampes »)
         moveTaskToBack(true);
     }
 
     @Override
+    protected void onPause() {
+        super.onPause();
+        // volontairement pas de web.onPause() : la page doit continuer en arrière-plan
+    }
+
+    @Override
     protected void onDestroy() {
+        LampesService.stop(this);
+        if (stopReceiver != null) { try { unregisterReceiver(stopReceiver); } catch (Exception ignored) { } }
         if (ble != null) ble.closeAll();
         if (audio != null) audio.stop();
         if (web != null) web.destroy();
