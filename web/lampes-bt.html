@@ -69,7 +69,7 @@
 </head>
 <body>
 <main>
-  <h1>💡 Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 43</span></h1>
+  <h1>💡 Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 44</span></h1>
   <p class="sub">Sticks, rideau et autres lampes LED Bluetooth, pilotés ensemble ou par groupe.</p>
 
   <div id="nobt" class="card warn hidden">
@@ -661,7 +661,6 @@ const PROTOCOLS = [
         list.map((v, k) => [v, list.length > 1 ? `${name} ${k + 1}` : name, cat]));
       // dessiné par l'app (pas enregistré dans le rideau) : [code, nom, thème, libellé du bouton]
       out.splice(out.findIndex(e => e[0] === 42) + 1, 0, ['be', 'Belgique sur fond blanc', '🏳️ Drapeaux', '🇧🇪']);
-      out.push(['weed', 'Feuille de cannabis', '🌿 Cannabis', '🍃 Feuille'], ['rasta', 'Feuille sur couleurs rasta', '🌿 Cannabis', '🟥🟨🟩 Rasta']);
       return out;
     })(),
   },
@@ -1259,7 +1258,7 @@ function fillNative() {
 function sendNative() {
   if (!nativeSel) return;
   const [pid, mv] = nativeSel.split(':');
-  const DRAWN = { be: 'beflag', weed: 'weed', rasta: 'rasta' };   // images dessinées par l'app
+  const DRAWN = { be: 'beflag' };   // images dessinées par l'app
   if (pid === 'fairy' && DRAWN[mv]) {
     $('speed').closest('.row').classList.add('hidden'); $('speedStill').classList.remove('hidden');
     const curt = targets().filter(d => d.proto.id === 'fairy' && ready(d));
@@ -1531,35 +1530,6 @@ function model(kind, t = 0) {
     if (kind === 'tempo') {                                         // ligne que le rideau fera défiler en boucle
       const vertical = +$('tempoDir').value >= 9;                   // gauche/droite → ligne verticale
       if (vertical ? c < 2 : r < 2) img[i] = mine;
-    }
-  }
-  const LEAFX = [
-    '....................',
-    '.........#..........',
-    '.........#..........',
-    '........###.........',
-    '........###.........',
-    '.#......###......#..',
-    '..##....###....##...',
-    '...###..###..###....',
-    '....###.###.###.....',
-    '.....#########......',
-    '##.....#####.....##.',
-    '.####...###...####..',
-    '...######.######....',
-    '.......#####........',
-    '.........#..........',
-    '.........#..........',
-    '.........#..........',
-    '........###.........',
-    '....................',
-    '....................',
-  ];                                        // feuille de cannabis dessinée à la main (# = LED)
-  if (kind === 'weed' || kind === 'rasta') {
-    const band = r => r < 7 ? hueByte(0) : r < 13 ? hueByte(50) : hueByte(120);    // rouge, jaune, vert
-    for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
-      const on = LEAFX[r][c] === '#';
-      img[r * N + c] = kind === 'weed' ? (on ? hueByte(120) : OFF) : (on ? OFF : band(r));
     }
   }
   if (kind === 'beflag') {                       // fond blanc, drapeau 18×12 centré : noir, jaune, rouge (6 colonnes chacun)
@@ -2200,7 +2170,7 @@ renderTargets();
 if (navigator.bluetooth) autoReconnect();
 window.__androidPermissionsChanged = () => { autoReconnect(); listSources(false); };
 if (IS_ANDROID) document.querySelectorAll('.pc-only').forEach(e => e.remove());
-log('Lampes — version 43' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
+log('Lampes — version 44' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
 </script>
 </body>
 </html>

@@ -25,8 +25,8 @@
 
     <application
         android:label="Lampes"
-        android:icon="@drawable/ic_lampes"
-        android:roundIcon="@drawable/ic_lampes"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher"
         android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
         android:hardwareAccelerated="true">
         <activity
