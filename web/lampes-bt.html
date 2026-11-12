@@ -67,7 +67,7 @@
 </head>
 <body>
 <main>
-  <h1>💡 Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 27</span></h1>
+  <h1>💡 Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 28</span></h1>
   <p class="sub">Sticks, rideau et autres lampes LED Bluetooth, pilotés ensemble ou par groupe.</p>
 
   <div id="nobt" class="card warn hidden">
@@ -169,12 +169,6 @@
         <label><input type="checkbox" id="diyFlipY"> Miroir haut/bas</label>
         <label><input type="checkbox" id="diySwap"> Pivoter</label>
       </div>
-      <div style="margin-top:10px; font-weight:600">📺 Spectre en direct</div>
-      <div class="row"><label class="lbl">LED / image</label><input type="range" id="liveBudget" min="5" max="120" value="30"><span class="muted" id="liveBudgetVal" style="width:40px">30</span></div>
-      <div class="row"><label class="lbl">Pause</label><input type="range" id="liveGap" min="0" max="40" value="10"><span class="muted" id="liveGapVal" style="width:60px">10 ms</span></div>
-      <div class="row"><label class="lbl">Rattrapage</label><input type="range" id="liveRefresh" min="0" max="20" value="6"><span class="muted" id="liveRefreshVal" style="width:60px">6 LED</span></div>
-      <div class="muted">Si des LED restent éteintes : baisse « LED / image » ou monte « Pause ». Si c'est fluide : fais l'inverse.</div>
-      <div class="row"><label><input type="checkbox" id="liveMulti"> Plusieurs LED par paquet (beaucoup plus rapide, à essayer)</label></div>
       <div class="row"><button id="diyDiag">🔍 Diagnostic du rideau</button><button id="diyColorBack">Revenir en mode couleur</button></div>
     </details>
   </div>
@@ -256,6 +250,17 @@
         <option value="mine">🎨 Couleur de la roue</option>
         <option value="mirror">🪞 Miroir (barres depuis le centre)</option>
       </select>
+    </div>
+    <div class="hidden" id="mSpecTune" style="margin-top:6px; padding:12px; border:1px solid var(--line); border-radius:12px">
+      <div class="row" style="margin-top:0">
+        <span style="flex:1">Plusieurs LED par paquet<br><span class="muted">beaucoup plus rapide, à essayer</span></span>
+        <button id="liveMultiBtn" style="min-width:90px; font-weight:700">Non</button>
+        <input type="checkbox" id="liveMulti" class="hidden">
+      </div>
+      <div class="row"><label class="lbl">LED / image</label><input type="range" id="liveBudget" min="5" max="120" value="30"><span class="muted" id="liveBudgetVal" style="width:40px">30</span></div>
+      <div class="row"><label class="lbl">Pause</label><input type="range" id="liveGap" min="0" max="40" value="10"><span class="muted" id="liveGapVal" style="width:60px">10 ms</span></div>
+      <div class="row"><label class="lbl">Rattrapage</label><input type="range" id="liveRefresh" min="0" max="20" value="6"><span class="muted" id="liveRefreshVal" style="width:60px">6 LED</span></div>
+      <div class="muted" style="margin-top:6px">Des LED restent éteintes : baisse « LED / image » ou monte « Pause ». C'est propre mais lent : fais l'inverse.</div>
     </div>
     <div class="row">
       <label class="lbl">Sensibilité</label>
@@ -868,6 +873,7 @@ function renderTargets() {
     : 'Animations de la page' + (low === 'rideau' ? ' pour le rideau' : ' pour ' + target);
   $('mCurtainRow').classList.toggle('hidden', !t.some(d => d.proto.id === 'fairy'));
   $('mSpecRow').classList.toggle('hidden', !t.some(d => d.proto.id === 'fairy') || +$('mCurtain').value !== -1);
+  $('mSpecTune').classList.toggle('hidden', $('mSpecRow').classList.contains('hidden'));
   $('musicDesc').textContent = 'Les lampes ' + (target === '*' ? 'de tous les groupes' : 'de « ' + target + ' »') + ' réagissent à la musique.';
   $('syncDesc').textContent = target === '*'
     ? 'Jouées en même temps sur tous les appareils (sticks et rideau ensemble). Garde la page ouverte.'
@@ -1637,6 +1643,13 @@ $('diyColorBack').onclick = () => diyTargets().forEach(d => { diyStop(d); send(d
   });
   const lbl = () => { $('liveBudgetVal').textContent = $('liveBudget').value; $('liveGapVal').textContent = $('liveGap').value + ' ms'; $('liveRefreshVal').textContent = $('liveRefresh').value + ' LED'; };
   ['liveBudget', 'liveGap', 'liveRefresh'].forEach(id => $(id).addEventListener('input', lbl)); lbl();
+  const multiShow = () => { const on = $('liveMulti').checked; $('liveMultiBtn').textContent = on ? 'Oui' : 'Non'; $('liveMultiBtn').classList.toggle('sel', on); };
+  $('liveMultiBtn').onclick = () => {
+    $('liveMulti').checked = !$('liveMulti').checked; $('liveMulti').dispatchEvent(new Event('change')); multiShow();
+    log(`📺 Plusieurs LED par paquet : ${$('liveMulti').checked ? 'oui' : 'non'}`);
+    devices.forEach(d => { if (d.live && d.liveImg) d.liveImg.fill(-1); });   // tout renvoyer avec le nouveau mode
+  };
+  multiShow();
   drawDiy(); tempoInfo();
   setInterval(() => { if (!$('diyCard').classList.contains('hidden')) tempoInfo(); }, 1000);
 }
@@ -1837,7 +1850,7 @@ renderTargets();
 if (navigator.bluetooth) autoReconnect();
 window.__androidPermissionsChanged = () => { autoReconnect(); listSources(false); };
 if (IS_ANDROID) document.querySelectorAll('.pc-only').forEach(e => e.remove());
-log('Lampes — version 27' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
+log('Lampes — version 28' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
 </script>
 </body>
 </html>
