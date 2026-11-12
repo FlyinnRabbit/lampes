@@ -69,7 +69,7 @@
 </head>
 <body>
 <main>
-  <h1>💡 Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 37</span></h1>
+  <h1>💡 Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 38</span></h1>
   <p class="sub">Sticks, rideau et autres lampes LED Bluetooth, pilotés ensemble ou par groupe.</p>
 
   <div id="nobt" class="card warn hidden">
@@ -1779,7 +1779,7 @@ function wheelDiscFrame(d) {
   const img = new Array(N * N).fill(OFF);
   const [h0] = rgbToHsv(state.r, state.g, state.b);
   const p = d.anim ? clock.p - d.anim.p0 : 0;
-  const multi = $('liveMulti').checked, step = multi ? 10 : 30;          // sans paquets groupés : moins de nuances, moins de LED à changer
+  const step = 10;                                                       // crans de 10° : rotation fluide
   const want = Math.floor((h0 + p / 14) * 360 / step);                   // même tour que la couleur des sticks
   if (d.wheelStep === undefined || !(d.livePending > 0)) d.wheelStep = want;   // pas d'avance tant que l'image n'est pas complète
   const rot = d.wheelStep * step;
@@ -1896,18 +1896,19 @@ async function liveSendFrame(d) {
   // rattrapage : quelques LED renvoyées à chaque image, en tournant sur tout le rideau (corrige les paquets perdus)
   const refresh = [];
   for (let k = 0; k < +$('liveRefresh').value; k++) { d.liveCursor = ((d.liveCursor || 0) + 1) % (N * N); refresh.push(d.liveCursor); }
-  const budget = +$('liveBudget').value;                       // LED max par image : le rideau ne suit pas au-delà
+  const whole = d.liveVisual === 'wheel';                      // disque : chaque cran de rotation part d'un bloc
+  const budget = whole ? N * N : +$('liveBudget').value;       // LED max par image : le rideau ne suit pas au-delà
   // envoi équitable : on commence après la dernière LED envoyée, sinon le haut du rideau prend toute la place
   const start = changes.findIndex(i => i > (d.liveLast ?? -1));
   const ordered = start > 0 ? changes.slice(start).concat(changes.slice(0, start)) : changes;
   const picked = ordered.slice(0, budget);
   if (picked.length) d.liveLast = picked[picked.length - 1];
   d.livePending = changes.length - picked.length;              // LED encore en retard après cette image
-  const todo = picked.concat(refresh.filter(i => !changes.includes(i)));
+  const todo = whole ? picked : picked.concat(refresh.filter(i => !changes.includes(i)));
   if (!todo.length) return;
   const room = Math.max(1, Math.min(79, Math.floor(((d.device.gatt.mtu || 23) - 3 - 4) / 3)));
-  const per = $('liveMulti').checked ? room : 1;               // documenté : une LED par paquet
-  const gap = +$('liveGap').value;
+  const per = whole || $('liveMulti').checked ? room : 1;      // documenté : une LED par paquet
+  const gap = whole ? 0 : +$('liveGap').value;
   for (let i = 0; i < todo.length; i += per) {
     const part = todo.slice(i, i + per);
     const pkt = fairy([0xaa, 0xd1, 3 * part.length, ...part.flatMap(idx => {
@@ -2139,7 +2140,7 @@ renderTargets();
 if (navigator.bluetooth) autoReconnect();
 window.__androidPermissionsChanged = () => { autoReconnect(); listSources(false); };
 if (IS_ANDROID) document.querySelectorAll('.pc-only').forEach(e => e.remove());
-log('Lampes — version 37' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
+log('Lampes — version 38' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
 </script>
 </body>
 </html>
