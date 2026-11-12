@@ -69,7 +69,7 @@
 </head>
 <body>
 <main>
-  <h1>💡 Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 38</span></h1>
+  <h1>💡 Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 39</span></h1>
   <p class="sub">Sticks, rideau et autres lampes LED Bluetooth, pilotés ensemble ou par groupe.</p>
 
   <div id="nobt" class="card warn hidden">
@@ -1746,6 +1746,7 @@ $('diyColorBack').onclick = () => diyTargets().forEach(d => { diyStop(d); send(d
   ['liveBudget', 'liveGap', 'liveRefresh', 'liveHeight'].forEach(id => $(id).addEventListener('input', lbl)); lbl();
   const multiShow = () => { const on = $('liveMulti').checked; $('liveMultiBtn').textContent = on ? 'Oui' : 'Non'; $('liveMultiBtn').classList.toggle('sel', on); };
   $('liveMultiBtn').onclick = () => {
+    devices.forEach(d => { d.wheelStep = undefined; });
     $('liveMulti').checked = !$('liveMulti').checked; $('liveMulti').dispatchEvent(new Event('change')); multiShow();
     log(`📺 Plusieurs LED par paquet : ${$('liveMulti').checked ? 'oui' : 'non'}`);
     devices.forEach(d => { if (d.live && d.liveImg) d.liveImg.fill(-1); });   // tout renvoyer avec le nouveau mode
@@ -1776,19 +1777,22 @@ function readSpectrum(n) {
   return out;
 }
 function wheelDiscFrame(d) {
-  const img = new Array(N * N).fill(OFF);
+  const img = new Array(N * N).fill(OFF), multi = $('liveMulti').checked;
   const [h0] = rgbToHsv(state.r, state.g, state.b);
   const p = d.anim ? clock.p - d.anim.p0 : 0;
   const step = 10;                                                       // crans de 10° : rotation fluide
+  const sector = multi ? 10 : 60;      // 1 LED par paquet : 6 secteurs → ~50 LED à changer par cran au lieu de ~316
   const want = Math.floor((h0 + p / 14) * 360 / step);                   // même tour que la couleur des sticks
-  if (d.wheelStep === undefined || !(d.livePending > 0)) d.wheelStep = want;   // pas d'avance tant que l'image n'est pas complète
+  // un cran à la fois en mode 1 LED : peu de LED à changer, disque toujours net (il tourne au rythme du Bluetooth)
+  if (d.wheelStep === undefined) d.wheelStep = want;
+  else if (!(d.livePending > 0) && want !== d.wheelStep) d.wheelStep = multi ? want : d.wheelStep + 1;
   const rot = d.wheelStep * step;
   for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
     const dist = Math.hypot(c + .5 - N / 2, r + .5 - N / 2);
     if (dist > N / 2) continue;
     if (dist < 1.5) { img[r * N + c] = WHITE; continue; }
     const ang = Math.atan2(c + .5 - N / 2, -(r + .5 - N / 2)) * 180 / Math.PI;   // 0° en haut, sens horaire
-    img[r * N + c] = hueByte(Math.floor((ang + rot) / step) * step);   // secteurs de couleur
+    img[r * N + c] = hueByte(Math.floor((ang + rot) / sector) * sector);   // secteurs de couleur
   }
   return img;
 }
@@ -1907,8 +1911,8 @@ async function liveSendFrame(d) {
   const todo = whole ? picked : picked.concat(refresh.filter(i => !changes.includes(i)));
   if (!todo.length) return;
   const room = Math.max(1, Math.min(79, Math.floor(((d.device.gatt.mtu || 23) - 3 - 4) / 3)));
-  const per = whole || $('liveMulti').checked ? room : 1;      // documenté : une LED par paquet
-  const gap = whole ? 0 : +$('liveGap').value;
+  const per = $('liveMulti').checked ? room : 1;               // documenté : une LED par paquet
+  const gap = whole && per > 1 ? 0 : +$('liveGap').value;
   for (let i = 0; i < todo.length; i += per) {
     const part = todo.slice(i, i + per);
     const pkt = fairy([0xaa, 0xd1, 3 * part.length, ...part.flatMap(idx => {
@@ -2140,7 +2144,7 @@ renderTargets();
 if (navigator.bluetooth) autoReconnect();
 window.__androidPermissionsChanged = () => { autoReconnect(); listSources(false); };
 if (IS_ANDROID) document.querySelectorAll('.pc-only').forEach(e => e.remove());
-log('Lampes — version 38' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
+log('Lampes — version 39' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
 </script>
 </body>
 </html>
