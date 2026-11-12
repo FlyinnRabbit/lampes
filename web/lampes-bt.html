@@ -69,7 +69,7 @@
 </head>
 <body>
 <main>
-  <h1>💡 Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 51</span></h1>
+  <h1>💡 Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 52</span></h1>
   <p class="sub">Sticks, rideau et autres lampes LED Bluetooth, pilotés ensemble ou par groupe.</p>
 
   <div id="nobt" class="card warn hidden">
@@ -1996,9 +1996,9 @@ const RT = {
       if (st.t % 3 === 0) {                                 // la formation avance de côté, descend au bord
         if (st.ox + st.dx < 0 || st.ox + st.dx > 3) { st.dx = -st.dx; st.oy++; } else st.ox += st.dx;
       }
-      const live = st.alive.map((a, i) => a && i).filter(i => i !== false);
+      const live = st.alive.map((a, i) => a ? i : -1).filter(i => i >= 0);          // seulement les envahisseurs encore là
       if (!live.length || st.oy > 8) return Object.assign(st, RT.inv.init());
-      const target = st.ox + (live[0] % 3) * 6 + 2;
+      const target = live.map(i => st.ox + (i % 3) * 6 + 2).sort((x, y) => Math.abs(x - st.ship) - Math.abs(y - st.ship))[0];
       if (!st.shot) { if (st.ship !== target) st.ship += Math.sign(target - st.ship); else st.shot = [17, st.ship]; }
       else {
         st.shot[0] -= 2;
@@ -2391,7 +2391,7 @@ renderTargets();
 if (navigator.bluetooth) autoReconnect();
 window.__androidPermissionsChanged = () => { autoReconnect(); listSources(false); };
 if (IS_ANDROID) document.querySelectorAll('.pc-only').forEach(e => e.remove());
-log('Lampes — version 51' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
+log('Lampes — version 52' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
 </script>
 </body>
 </html>
