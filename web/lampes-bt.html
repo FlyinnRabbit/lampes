@@ -69,7 +69,7 @@
 </head>
 <body>
 <main>
-  <h1>💡 Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 39</span></h1>
+  <h1>💡 Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 40</span></h1>
   <p class="sub">Sticks, rideau et autres lampes LED Bluetooth, pilotés ensemble ou par groupe.</p>
 
   <div id="nobt" class="card warn hidden">
@@ -1107,7 +1107,10 @@ const ANIMS = [
   { h:'Ambiances' },
   { id:'clock',  name:'🕐 Cercle horloge', fn: p => hsvToRgb(p / 14, 1, 1) },
   { id:'music',  name:'🎵 Musique', hidden: true, fn: (p, k) => musicColor(k) },
-  { id:'wheel',  name:'🌈 Disque chromatique', fn: p => { const [h, s] = wheelSpin(p); return hsvToRgb(h, s, 1); } },
+  { id:'wheel',  name:'🌈 Disque chromatique', fn: p => {
+      const c = devices.find(d => d.sweep && d.liveVisual === 'wheel' && d.live);
+      if (c) return hsvToRgb(sweepHue(c) / 360, 1, 1);                         // même couleur que l'aiguille du rideau
+      const [h, s] = wheelSpin(p); return hsvToRgb(h, s, 1); } },
   { id:'fire',   name:'🔥 Feu de camp', fn: feuDeCamp },
   { id:'candle', name:'🕯️ Bougie', fn: (p, k) => { const v = 0.75 * bruit(p * 5, k + 11) + 0.25 * bruit(p * 17, k + 12);
       return hsvToRgb(0.075 + 0.02 * v, 0.85, 0.45 + 0.4 * v); } },
@@ -1215,7 +1218,7 @@ function startAnim(id, list) {
     if (d.proto.bright) send(d, d.proto.bright(state.bright), true); });
   if (LIVE_ANIMS[id]) {                                 // rideau : dessiné pixel par pixel (roue en disque, vrai feu)
     const curt = t.filter(d => d.proto.id === 'fairy' && ready(d));
-    curt.forEach(d => { d.liveVisual = id; d.heat = null; });
+    curt.forEach(d => { d.liveVisual = id; d.heat = null; d.sweep = null; });
     if (curt.length) liveStart(curt);
   }
   log(`▶ ${ANIM[id].name} — ${list ? 'scène' : target === '*' ? 'tout' : target} (${t.length} appareil${t.length>1?'s':''})`);
@@ -1776,24 +1779,44 @@ function readSpectrum(n) {
   }
   return out;
 }
-function wheelDiscFrame(d) {
-  const img = new Array(N * N).fill(OFF), multi = $('liveMulti').checked;
-  const [h0] = rgbToHsv(state.r, state.g, state.b);
-  const p = d.anim ? clock.p - d.anim.p0 : 0;
-  const step = 10;                                                       // crans de 10° : rotation fluide
-  const sector = multi ? 10 : 60;      // 1 LED par paquet : 6 secteurs → ~50 LED à changer par cran au lieu de ~316
-  const want = Math.floor((h0 + p / 14) * 360 / step);                   // même tour que la couleur des sticks
-  // un cran à la fois en mode 1 LED : peu de LED à changer, disque toujours net (il tourne au rythme du Bluetooth)
-  if (d.wheelStep === undefined) d.wheelStep = want;
-  else if (!(d.livePending > 0) && want !== d.wheelStep) d.wheelStep = multi ? want : d.wheelStep + 1;
-  const rot = d.wheelStep * step;
+// Disque chromatique « radar » : le disque est d'une seule couleur ; une aiguille blanche tourne et repeint
+// derrière elle avec la couleur suivante de la roue chromatique (+45° à chaque tour). Seule la part balayée change.
+const discGeo = (() => {                              // angle (0° en haut, sens horaire) et distance de chaque LED
+  const g = [];
   for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
-    const dist = Math.hypot(c + .5 - N / 2, r + .5 - N / 2);
-    if (dist > N / 2) continue;
-    if (dist < 1.5) { img[r * N + c] = WHITE; continue; }
-    const ang = Math.atan2(c + .5 - N / 2, -(r + .5 - N / 2)) * 180 / Math.PI;   // 0° en haut, sens horaire
-    img[r * N + c] = hueByte(Math.floor((ang + rot) / sector) * sector);   // secteurs de couleur
+    const x = c + .5 - N / 2, y = r + .5 - N / 2, dist = Math.hypot(x, y);
+    g.push({ dist, ang: (Math.atan2(x, -y) * 180 / Math.PI + 360) % 360 });
   }
+  return g;
+})();
+function sweepHue(d) { return (d.sweep.h0 + d.sweep.turn * 45) % 360; }
+function wheelDiscFrame(d) {
+  const now = performance.now(), multi = $('liveMulti').checked;
+  if (!d.sweep) {
+    const [h0] = rgbToHsv(state.r, state.g, state.b);
+    d.sweep = { ang: 0, turn: 0, acc: 0, last: now, h0: Math.round(h0 * 360), paint: new Array(N * N).fill(OFF) };
+  }
+  const sw = d.sweep, STEP = 10;
+  // vitesse : curseur Vitesse (≈ 1 tour en 40 s → 4 s) ; en mode 1 LED, un cran par image au plus
+  sw.acc += (now - sw.last) / 1000 * (9 + +$('anSpeed').value * 0.81); sw.last = now;
+  let steps = Math.floor(sw.acc / STEP);
+  if (!multi && d.livePending > 0) steps = 0;          // on attend que le cran précédent soit affiché
+  if (!multi) steps = Math.min(steps, 1);
+  for (let k = 0; k < steps; k++) {
+    sw.acc -= STEP;
+    const from = sw.ang, to = sw.ang + STEP, col = hueByte(sweepHue(d));
+    discGeo.forEach((g, i) => { if (g.dist <= N / 2 && g.ang >= from && g.ang < to) sw.paint[i] = col; });
+    sw.ang = to;
+    if (sw.ang >= 360) { sw.ang -= 360; sw.turn++; }     // un tour complet : couleur suivante de la roue
+  }
+  if (sw.acc > STEP * 3) sw.acc = STEP * 3;             // pas de rattrapage brutal
+  const img = sw.paint.slice();
+  discGeo.forEach((g, i) => {
+    if (g.dist > N / 2) return;
+    let da = Math.abs(((g.ang - sw.ang + 540) % 360) - 180);
+    if (g.dist < 1.5) img[i] = WHITE;                                        // centre
+    else if (da * Math.PI / 180 * g.dist < 0.55) img[i] = WHITE;             // aiguille
+  });
   return img;
 }
 // Feu de camp : chaleur qui monte depuis les braises (algorithme « feu » classique), refroidie vers le haut et sur les côtés
@@ -1900,7 +1923,7 @@ async function liveSendFrame(d) {
   // rattrapage : quelques LED renvoyées à chaque image, en tournant sur tout le rideau (corrige les paquets perdus)
   const refresh = [];
   for (let k = 0; k < +$('liveRefresh').value; k++) { d.liveCursor = ((d.liveCursor || 0) + 1) % (N * N); refresh.push(d.liveCursor); }
-  const whole = d.liveVisual === 'wheel';                      // disque : chaque cran de rotation part d'un bloc
+  const whole = d.liveVisual === 'wheel';                      // disque : chaque cran part entier (il est petit)
   const budget = whole ? N * N : +$('liveBudget').value;       // LED max par image : le rideau ne suit pas au-delà
   // envoi équitable : on commence après la dernière LED envoyée, sinon le haut du rideau prend toute la place
   const start = changes.findIndex(i => i > (d.liveLast ?? -1));
@@ -2144,7 +2167,7 @@ renderTargets();
 if (navigator.bluetooth) autoReconnect();
 window.__androidPermissionsChanged = () => { autoReconnect(); listSources(false); };
 if (IS_ANDROID) document.querySelectorAll('.pc-only').forEach(e => e.remove());
-log('Lampes — version 39' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
+log('Lampes — version 40' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
 </script>
 </body>
 </html>
