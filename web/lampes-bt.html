@@ -67,7 +67,7 @@
 </head>
 <body>
 <main>
-  <h1>💡 Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 23</span></h1>
+  <h1>💡 Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 24</span></h1>
   <p class="sub">Sticks, rideau et autres lampes LED Bluetooth, pilotés ensemble ou par groupe.</p>
 
   <div id="nobt" class="card warn hidden">
@@ -1181,7 +1181,7 @@ async function listSources(askPermission) {
   const named = devs.some(d => d.label);
   sel.innerHTML = (IS_ANDROID ? '<option value="__phone">📱 Son du téléphone (Spotify, YouTube…)</option>'
                               : '<option value="__screen">🖥️ Son du PC (partage d\'écran avec audio)</option>') +
-    (named ? devs.map(d => `<option value="${d.deviceId}">${/voicemeeter/i.test(d.label) ? '🎛️ ' : '🎤 '}${d.label}</option>`).join('')
+    (named ? devs.map((d, i) => `<option value="${d.deviceId}">${/voicemeeter/i.test(d.label) ? '🎛️ ' : '🎤 '}${d.label || 'Micro ' + (i + 1)}</option>`).join('')
            : (IS_ANDROID ? '<option value="__ask">🎤 Micro du téléphone</option>'
                          : '<option value="__ask">🔓 Autoriser l\'accès audio pour voir Voicemeeter…</option>'));
   // choix : celui mémorisé, sinon Voicemeeter Out B1, sinon une sortie Voicemeeter
@@ -1224,12 +1224,13 @@ async function musicEngine() {     // ouvre la source si besoin ; renvoie true s
       music.timer = setInterval(musicTick, 30);
       log('🎵 Écoute : ' + $('mSrc').selectedOptions[0].textContent);
     }
-  } catch (e) { $('mStatus').textContent = 'Impossible : ' + e.message; log('✗ Musique : ' + e.message); return false; }
+  } catch (e) { const m = e.message || e.name || 'accès au son refusé'; $('mStatus').textContent = 'Impossible : ' + m; log('✗ Musique : ' + m); return false; }
   return true;
 }
 async function musicStart() {
   const t = targets(); if (!t.length) return log('Aucun appareil prêt dans cet onglet.');
-  if (!await musicEngine()) return;
+  const onlyCurtains = +$('mCurtain').value && t.every(d => d.proto.id === 'fairy');
+  if (!onlyCurtains && !await musicEngine()) return;
   const p0 = clock.p;
   nativeSel = null;
   const cm = +$('mCurtain').value;
@@ -1240,12 +1241,14 @@ async function musicStart() {
     log(`📻 Rideau : ${$('mCurtain').selectedOptions[0].textContent} (il écoute les enceintes avec son micro)`);
   }
   others.forEach(d => { d.anim = { id: 'music', p0 }; d.fx = null; d.lastFrame = null; });
-  $('mStatus').textContent = '♪ en cours'; markPlaying(); fillNative(); mSave();
+  $('mStatus').textContent = onlyCurtains ? '♪ le rideau écoute avec son micro' : '♪ en cours'; markPlaying(); fillNative(); mSave();
 }
-function musicStop() {
+function musicStop(userAsked) {
   devices.forEach(d => { if (d.anim && d.anim.id === 'music') d.anim = null; });
-  devices.forEach(d => { if (d.nm && ready(d)) { d.nm = null; send(d, colorFrame(d, state.r, state.g, state.b)); } });
-  document.querySelectorAll('[data-nm]').forEach(b => b.classList.remove('playing'));
+  if (userAsked === true) {                    // bouton Arrêter : le rideau quitte aussi son mode musique
+    devices.forEach(d => { if (d.nm && ready(d)) { d.nm = null; send(d, colorFrame(d, state.r, state.g, state.b)); } });
+    document.querySelectorAll('[data-nm]').forEach(b => b.classList.remove('playing'));
+  }
   music.keep = false; if (typeof tempoFollowOff === 'function') tempoFollowOff();
   if (music.timer) clearInterval(music.timer);
   if (music.stream) music.stream.getTracks().forEach(t => t.stop());
@@ -1329,7 +1332,7 @@ function drawMeter(b, m, h, beat) {
   if (beat) { c.fillStyle = '#fff'; c.fillRect(W2 - 14, 4, 10, H2 - 8); }
 }
 $('mStart').onclick = musicStart;
-$('mStop').onclick = musicStop;
+$('mStop').onclick = () => musicStop(true);
 $('mRefresh').onclick = () => listSources(true);
 $('mDelay').oninput = e => { $('mDelayVal').textContent = e.target.value + ' ms'; mSave(); };
 ['mSrc', 'mMode', 'mSens', 'mCurtain'].forEach(id => $(id).addEventListener('change', () => {
@@ -1692,7 +1695,7 @@ renderTargets();
 if (navigator.bluetooth) autoReconnect();
 window.__androidPermissionsChanged = () => { autoReconnect(); listSources(false); };
 if (IS_ANDROID) document.querySelectorAll('.pc-only').forEach(e => e.remove());
-log('Lampes — version 23' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
+log('Lampes — version 24' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
 </script>
 </body>
 </html>
