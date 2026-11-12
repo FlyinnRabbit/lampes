@@ -67,7 +67,7 @@
 </head>
 <body>
 <main>
-  <h1>💡 Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 29</span></h1>
+  <h1>💡 Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 30</span></h1>
   <p class="sub">Sticks, rideau et autres lampes LED Bluetooth, pilotés ensemble ou par groupe.</p>
 
   <div id="nobt" class="card warn hidden">
@@ -485,6 +485,12 @@ if (IS_ANDROID) (() => {
 const u = n => typeof n === 'number' ? BluetoothUUID.canonicalUUID(n) : n.toLowerCase();
 const clamp = (v, a, b) => Math.max(a, Math.min(b, Math.round(v)));
 
+function melkEffects(groups) {
+  return groups.flatMap(([cat, name, ranges]) => {
+    const codes = ranges.flatMap(([a, b]) => Array.from({ length: b - a + 1 }, (_, i) => a + i));
+    return codes.map((v, k) => [v, codes.length > 1 ? `${name} ${k + 1}` : name, cat]);
+  });
+}
 const PROTOCOLS = [
   {
     id: 'elk', name: 'ELK-BLEDOM / duoCo / Lotus Lantern',
@@ -502,6 +508,51 @@ const PROTOCOLS = [
       [0x95,'Clignote RVB'],[0x96,'Clignote 7 couleurs'],[0x97,'Clignote rouge'],
       [0x98,'Clignote vert'],[0x99,'Clignote bleu'],[0x9c,'Clignote blanc'],
     ],
+  },
+  {
+    // Variante MELK (sticks MELK-OC21…) d'après github.com/dave-code-ruiz/elkbledom (models.json, definitions.json) :
+    // même service fff0/fff3, mais effet 7e 05 03 v 06 ff ff 00 ef, vitesse 7e 04 02 v ff ff ff 00 ef,
+    // luminosité 7e 04 01 i 01 ff ff 00 ef, et identification 7e 07 83 puis 7e 04 04 à la connexion.
+    id: 'melk', name: 'MELK (sticks) — effets des modèles « 21 »',
+    service: 0xfff0, char: 0xfff3,
+    power: on => [0x7e,0x00,0x04,on?0xf0:0x00,0x00,on?0x01:0x00,0xff,0x00,0xef],
+    color: (r,g,b) => [0x7e,0x00,0x05,0x03,r,g,b,0x00,0xef],
+    white: () => [0x7e,0x00,0x05,0x03,255,255,255,0x00,0xef],
+    bright: p => [0x7e,0x04,0x01,clamp(p,1,100),0x01,0xff,0xff,0x00,0xef],
+    effect: m => [0x7e,0x05,0x03,m,0x06,0xff,0xff,0x00,0xef],
+    speed: s => [0x7e,0x04,0x02,clamp(s,0,100),0xff,0xff,0xff,0x00,0xef],
+    login: true,
+    effects: melkEffects([
+      ['🌈 Arc-en-ciel', 'Arc-en-ciel', [[0x01,0x02]]],
+      ['🏃 Poursuite', 'Poursuite', [[0x03,0x0a]]],
+      ['💓 Poursuite pulsée', 'Pulsée', [[0x0b,0x16]]],
+      ['🌊 Flux', 'Flux', [[0x17,0x34]]],
+      ['⚡ Flash pulsé', 'Flash', [[0x35,0x36]]],
+      ['🪟 Rideau', 'Rideau', [[0x37,0x3c]]],
+      ['🔥 Feu', 'Feu', [[0x3d,0x49]]],
+      ['🌫️ Fondus', 'Fondu', [[0x4a,0x8f],[0xd4,0xdb]]],
+      ['🎬 Action', 'Action', [[0x90,0xa7]]],
+      ['🛗 Ascenseur', 'Ascenseur', [[0xa8,0xb5]]],
+      ['📊 Barres', 'Barres', [[0xb6,0xc1]]],
+      ['🎨 Flash RVB', 'Flash RVB', [[0xc2,0xc7]]],
+      ['🎉 Fête', 'Fête', [[0xc8,0xc8]]],
+      ['💗 Pulsation', 'Pulsation', [[0xca,0xd3]]],
+      ['⬆️ Fondu du bas', 'Fondu bas', [[0xc9,0xc9],[0xdc,0xdc]]],
+    ]),
+  },
+  {
+    id: 'melk10', name: 'MELK (sticks) — effets des modèles « 10 »',
+    service: 0xfff0, char: 0xfff3,
+    power: on => [0x7e,0x00,0x04,on?0xf0:0x00,0x00,on?0x01:0x00,0xff,0x00,0xef],
+    color: (r,g,b) => [0x7e,0x00,0x05,0x03,r,g,b,0x00,0xef],
+    white: () => [0x7e,0x00,0x05,0x03,255,255,255,0x00,0xef],
+    bright: p => [0x7e,0x04,0x01,clamp(p,1,100),0x01,0xff,0xff,0x00,0xef],
+    effect: m => [0x7e,0x05,0x03,m,0x06,0xff,0xff,0x00,0xef],
+    speed: s => [0x7e,0x04,0x02,clamp(s,0,100),0xff,0xff,0xff,0x00,0xef],
+    login: true,
+    effects: [[0x00,'Automatique'],[0x01,'Magie'],[0x02,'Effet 2'],[0x03,'Effet 3'],[0x04,'Effet 4'],[0x05,'Effet 5'],
+              [0x10,'Cycle arc-en-ciel'],[0x20,'Vague de couleurs'],[0x30,'Respiration'],[0x40,'Stroboscope'],
+              [0x80,'Saut RVB'],[0x90,'Fondu RVB'],[0xcf,'Défilement bleu']],
   },
   {
     id: 'triones', name: 'Triones / Happy Lighting / iLight',
@@ -753,7 +804,10 @@ async function openGatt(d, quiet) {
     const uuids = (await d.server.getPrimaryServices()).map(s => s.uuid);
     log('Services : ' + (uuids.map(shortUuid).join(', ') || 'aucun visible'));
     const saved = store.get('proto_' + d.device.id);
-    const score = p => (p.id === saved ? 4 : 0) + (p.id === 'fairy' && isFairyName(d) ? 2 : 0) + (typeof p.service === 'string' ? 1 : 0);
+    const isMelk = /^melk/i.test(d.device.name || '');
+    const savedOk = !(isMelk && saved === 'elk');
+    const score = p => (p.id === saved && savedOk ? 4 : 0) + (p.id === 'fairy' && isFairyName(d) ? 2 : 0)
+                     + (p.id === 'melk' && isMelk ? 3 : 0) + (typeof p.service === 'string' ? 1 : 0);
     const order = [...PROTOCOLS].sort((a,b) => score(b) - score(a));
     for (const p of order) {
       if (uuids.includes(u(p.service))) { try { await useProtocol(d, p); break; } catch (e) {} }
@@ -779,6 +833,14 @@ async function useProtocol(d, p) {
   d.proto = p;
   store.set('proto_' + d.device.id, p.id);
   log(`✓ ${d.device.name} : protocole « ${p.name} »`);
+  if (p.login) {                                   // MELK : identification, puis rallumage (7e 04 04 éteint)
+    try {
+      await writeRetry(d.char, new Uint8Array([0x7e, 0x07, 0x83]), 'noresp'); await sleep(1000);
+      await writeRetry(d.char, new Uint8Array([0x7e, 0x04, 0x04]), 'noresp'); await sleep(1000);
+      await writeRetry(d.char, new Uint8Array(p.power(true)), 'noresp');
+      log(`  ${d.device.name} : identification MELK faite`);
+    } catch (e) { log('  identification MELK impossible : ' + e.message); }
+  }
   if (p.keepAlive) d.keepAliveTimer = setInterval(() => send(d, p.keepAlive, true), 2000);
 }
 function stopKeepAlive(d){ if (d.keepAliveTimer) clearInterval(d.keepAliveTimer); d.keepAliveTimer = null; }
@@ -854,8 +916,7 @@ function renderTargets() {
   // Tout → bibliothèque synchronisée ; groupe de sticks (animations intégrées nommées) → seulement leurs options ;
   // rideau / autre groupe → bibliothèque jouée sur ce groupe seul
   const t = targets();
-  const sticksOnly = target !== '*' && t.length > 0 && t.every(d => d.proto.effects && d.proto.effects.length && !d.proto.effects.some(e => e[2]) &&
-                     d.proto.effects.filter(([, n]) => /^(Animation|Mode) /.test(n)).length <= d.proto.effects.length / 2);
+  const sticksOnly = target !== '*' && t.length > 0 && t.every(d => d.proto.id !== 'fairy' && d.proto.effects && d.proto.effects.length);
   $('syncCard').classList.toggle('hidden', sticksOnly);
   $('nmCard').classList.toggle('hidden', target === '*' || !t.some(d => d.proto.id === 'fairy'));
   $('diyCard').classList.toggle('hidden', !IS_ANDROID || target === '*' || !t.some(d => d.proto.id === 'fairy'));
@@ -1851,7 +1912,7 @@ renderTargets();
 if (navigator.bluetooth) autoReconnect();
 window.__androidPermissionsChanged = () => { autoReconnect(); listSources(false); };
 if (IS_ANDROID) document.querySelectorAll('.pc-only').forEach(e => e.remove());
-log('Lampes — version 29' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
+log('Lampes — version 30' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
 </script>
 </body>
 </html>
