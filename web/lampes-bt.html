@@ -69,7 +69,7 @@
 </head>
 <body>
 <main>
-  <h1>💡 Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 40</span></h1>
+  <h1>💡 Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 41</span></h1>
   <p class="sub">Sticks, rideau et autres lampes LED Bluetooth, pilotés ensemble ou par groupe.</p>
 
   <div id="nobt" class="card warn hidden">
@@ -212,6 +212,7 @@
       <label class="lbl">Vitesse</label>
       <input type="range" id="speed" min="1" max="100" value="50">
     </div>
+    <div class="muted hidden" id="speedStill" style="margin-top:10px">Image fixe : pas de vitesse.</div>
   </div>
 
   <div class="card hidden" id="sceneCard">
@@ -222,7 +223,6 @@
       <button data-scene="rain">🌧️ Pluie de fête</button>
       <button data-scene="tempo">🎵 Tempo</button>
       <button data-scene="calm">🔥 Calme</button>
-      <button data-scene="chill">🌌 Chill</button>
       <button data-scene="off">🌙 Tout éteindre</button>
     </div>
   </div>
@@ -644,10 +644,13 @@ const PROTOCOLS = [
     white: (w=255) => fairy([0xaa,0x03,0x07,0x01, 0,0, 0,0, ...be16(fairyV(w/255))]),
     bright: null, // la luminosité passe par le V du HSV
     // un preset = 2 trames : motif + luminosité, puis vitesse
-    effectFrames: (m, speed, bright) => [
-      fairy([0xaa,0x03,0x04,0x02, m & 0xff, ...be16(clamp(Math.round(bright/10),1,10)*100)]),
-      fairy([0xaa,0x0c,0x01, clamp(speed,1,100)]),
-    ],
+    // images fixes (relevées sur le rideau) : pas de trame de vitesse
+    still: new Set([2,3,4,5, 7,8,9,12, 18,19, 28, 33,35,36,37,38,39,40,41,42]),
+    effectFrames(m, speed, bright) {
+      const f = [fairy([0xaa,0x03,0x04,0x02, m & 0xff, ...be16(clamp(Math.round(bright/10),1,10)*100)])];
+      if (!this.still.has(m)) f.push(fairy([0xaa,0x0c,0x01, clamp(speed,1,100)]));
+      return f;
+    },
     // [numéro, nom, catégorie] — catégories relevées sur le rideau
     effects: (() => {
       const cats = [['🎄 Noël', 'Noël', [1,2,3,4,5,6]], ['🎃 Halloween', 'Halloween', [7,8,9,10,11,12]],
@@ -1105,31 +1108,13 @@ function feuxArtifice(p, k) {
 }
 const ANIMS = [
   { h:'Ambiances' },
-  { id:'clock',  name:'🕐 Cercle horloge', fn: p => hsvToRgb(p / 14, 1, 1) },
   { id:'music',  name:'🎵 Musique', hidden: true, fn: (p, k) => musicColor(k) },
   { id:'wheel',  name:'🌈 Disque chromatique', fn: p => {
       const c = devices.find(d => d.sweep && d.liveVisual === 'wheel' && d.live);
       if (c) return hsvToRgb(sweepHue(c) / 360, 1, 1);                         // même couleur que l'aiguille du rideau
       const [h, s] = wheelSpin(p); return hsvToRgb(h, s, 1); } },
   { id:'fire',   name:'🔥 Feu de camp', fn: feuDeCamp },
-  { id:'candle', name:'🕯️ Bougie', fn: (p, k) => { const v = 0.75 * bruit(p * 5, k + 11) + 0.25 * bruit(p * 17, k + 12);
-      return hsvToRgb(0.075 + 0.02 * v, 0.85, 0.45 + 0.4 * v); } },
   { id:'lava',   name:'🌋 Lave', fn: (p, k) => hsvToRgb(0.01 + 0.05 * bruit(p * 1.2, k + 21), 1, 0.45 + 0.55 * bruit(p * 1.8, k + 22)) },
-  { h:'Nature' },
-  { id:'ocean',  name:'🌊 Océan', fn: (p, k) => hsvToRgb(0.5 + 0.13 * bruit(p * 0.7, k + 31), 1, 0.55 + 0.45 * bruit(p * 1.3, k + 32)) },
-  { id:'aurora', name:'🌌 Aurore boréale', fn: (p, k) => fondu([[0,255,110],[0,190,200],[120,0,255],[0,255,60],[200,0,180]])(p * 0.45 + k * 0.8) },
-  { id:'sunset', name:'🌅 Coucher de soleil', fn: (p, k) => fondu([[255,110,0],[255,40,80],[150,0,200],[255,40,0]])(p * 0.35 + k * 0.6) },
-  { id:'forest', name:'🌲 Forêt', fn: (p, k) => hsvToRgb(0.24 + 0.12 * bruit(p * 0.8, k + 41), 0.95, 0.5 + 0.5 * bruit(p * 1.6, k + 42)) },
-  { id:'storm',  name:'⛈️ Orage', fn: (p, k) => { const i = Math.floor(p * 2), f = p * 2 - i;
-      const flash = rnd(i, k + 51) < 0.25 && (f < 0.06 || (f > 0.12 && f < 0.16));       // double éclair
-      return flash ? [230,230,255] : hsvToRgb(0.66, 0.9, 0.08 + 0.12 * bruit(p, k + 52)); } },
-  { h:'Fêtes' },
-  { id:'fwork',  name:'🎆 Feux d\'artifice', fn: feuxArtifice },
-  { id:'xmas',   name:'🎄 Noël', fn: (p, k) => fondu([[255,0,0],[0,255,40],[255,180,90]])(p * 0.5 + k) },
-  { id:'hallow', name:'🎃 Halloween', fn: (p, k) => { const v = bruit(p * 3, k + 61);
-      return scale(v > 0.5 ? [255,90,0] : [130,0,255], 0.4 + 0.6 * bruit(p * 9, k + 62)); } },
-  { id:'love',   name:'💖 Saint-Valentin', fn: (p, k) => scale(mix([255,0,30],[255,60,160], bruit(p * 0.8, k + 71)), 0.15 + 0.85 * smooth((p % 2) < 1 ? p % 1 : 1 - p % 1)) },
-  { id:'belgium',name:'🇧🇪 Belgique', fn: (p, k) => saut([[0,0,0],[255,200,0],[255,0,0]])(p + k) },
   { h:'Soirée' },
   { id:'disco',  name:'🪩 Disco', fn: (p, k) => hsvToRgb(rnd(Math.floor(p * 2), k + 81), 1, 1) },
   { id:'police', name:'🚨 Police', fn: (p, k) => [[255,0,0],[0,0,0],[255,0,0],[0,0,0],[0,0,255],[0,0,0],[0,0,255],[0,0,0]][(Math.floor(p * 8) + k * 4) % 8] },
@@ -1271,6 +1256,9 @@ function sendNative() {
   if (!nativeSel) return;
   const [pid, mv] = nativeSel.split(':');
   const m = +mv, s = +$('speed').value;
+  const pr = PROTOCOLS.find(x => x.id === pid), still = !!(pr && pr.still && pr.still.has(m));
+  $('speed').closest('.row').classList.toggle('hidden', still);   // curseur caché pour les images fixes
+  $('speedStill').classList.toggle('hidden', !still);
   each(d => {
     const p = d.proto; if (p.id !== pid) return;
     d.anim = null; d.nm = null;
@@ -2008,8 +1996,7 @@ const SCENES = {
   party: { name: '🎉 Soirée', music: { mode: 'beat', curtain: -1, style: 'radio' } },
   rain:  { name: '🌧️ Pluie de fête', music: { mode: 'beat', curtain: -1, style: 'rain' } },
   tempo: { name: '🎵 Tempo', music: { mode: 'rainbow', curtain: -1, style: 'tempo' } },
-  calm:  { name: '🔥 Calme', curtainAnim: 'fire', sticksAnim: 'candle' },
-  chill: { name: '🌌 Chill', curtainAnim: 'aurora', sticksAnim: 'ocean' },
+  calm:  { name: '🔥 Calme', curtainAnim: 'fire', sticksAnim: 'lava' },
   off:   { name: '🌙 Tout éteindre', off: true },
 };
 async function runScene(id) {
@@ -2036,7 +2023,7 @@ document.querySelectorAll('[data-scene]').forEach(b => b.onclick = () => runScen
    Mode ✏️ : toucher n'importe quel bouton d'animation, d'effet, de musique du rideau ou de scène l'ajoute / le retire. */
 let favEdit = false;
 const favKey = () => 'fav_' + target;
-const favGet = () => store.get(favKey(), []);
+const favGet = () => store.get(favKey(), []).filter(f => f.kind !== 'anim' || ANIM[f.id]);
 function favIdentify(b) {
   if (b.dataset.id && b.closest('#fxgrid')) return { kind: 'anim', id: b.dataset.id, label: ANIM[b.dataset.id]?.name || b.textContent };
   if (b.dataset.key && b.closest('#nativeGrid')) {
@@ -2167,7 +2154,7 @@ renderTargets();
 if (navigator.bluetooth) autoReconnect();
 window.__androidPermissionsChanged = () => { autoReconnect(); listSources(false); };
 if (IS_ANDROID) document.querySelectorAll('.pc-only').forEach(e => e.remove());
-log('Lampes — version 40' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
+log('Lampes — version 41' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
 </script>
 </body>
 </html>
