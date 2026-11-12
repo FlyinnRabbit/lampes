@@ -67,7 +67,7 @@
 </head>
 <body>
 <main>
-  <h1>💡 Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 20</span></h1>
+  <h1>💡 Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 21</span></h1>
   <p class="sub">Sticks, rideau et autres lampes LED Bluetooth, pilotés ensemble ou par groupe.</p>
 
   <div id="nobt" class="card warn hidden">
@@ -229,6 +229,16 @@
         <option value="freq">🎚️ Couleurs selon basses / médiums / aigus</option>
         <option value="rainbow">🌈 Arc-en-ciel qui pulse sur les basses</option>
         <option value="volume">🔊 Ma couleur, intensité selon le volume</option>
+      </select>
+    </div>
+    <div class="row hidden" id="mCurtainRow">
+      <label class="lbl">Rideau</label>
+      <select id="mCurtain" style="flex:1; min-width:220px">
+        <option value="4">📻 Spectre (barres façon radio)</option>
+        <option value="1">🔊 Énergie</option>
+        <option value="2">🥁 Rythme</option>
+        <option value="3">🌀 Défilement</option>
+        <option value="0">🎨 Mêmes couleurs que les sticks</option>
       </select>
     </div>
     <div class="row">
@@ -840,6 +850,7 @@ function renderTargets() {
   const low = target.toLowerCase();
   $('syncTitle').textContent = target === '*' ? 'Animations synchronisées'
     : 'Animations de la page' + (low === 'rideau' ? ' pour le rideau' : ' pour ' + target);
+  $('mCurtainRow').classList.toggle('hidden', !t.some(d => d.proto.id === 'fairy'));
   $('musicDesc').textContent = 'Les lampes ' + (target === '*' ? 'de tous les groupes' : 'de « ' + target + ' »') + ' réagissent à la musique.';
   $('syncDesc').textContent = target === '*'
     ? 'Jouées en même temps sur tous les appareils (sticks et rideau ensemble). Garde la page ouverte.'
@@ -1154,7 +1165,7 @@ $('speed').oninput = throttle(() => {
 /* ---------- Mode musique ---------- */
 const music = { ctx: null, stream: null, an: null, buf: [], beatAt: 0, hue: 0, avg: 0, level: 0, timer: null };
 const mSave = () => store.set('music', { src: $('mSrc').value, srcLabel: $('mSrc').selectedOptions[0]?.textContent,
-  mode: $('mMode').value, sens: $('mSens').value, delay: $('mDelay').value });
+  mode: $('mMode').value, sens: $('mSens').value, delay: $('mDelay').value, curtain: $('mCurtain').value });
 async function listSources(askPermission) {
   const sel = $('mSrc'), saved = store.get('music', {});
   let devs = [];
@@ -1218,7 +1229,14 @@ async function musicStart() {
   if (!await musicEngine()) return;
   const p0 = clock.p;
   nativeSel = null;
-  t.forEach(d => { d.anim = { id: 'music', p0 }; d.fx = null; d.lastFrame = null; });
+  const cm = +$('mCurtain').value;
+  const curtains = t.filter(d => d.proto.id === 'fairy');
+  const others = cm ? t.filter(d => d.proto.id !== 'fairy') : t;
+  if (cm && curtains.length) {
+    nmSend(cm, curtains, +$('mSens').value);
+    log(`📻 Rideau : ${$('mCurtain').selectedOptions[0].textContent} (il écoute les enceintes avec son micro)`);
+  }
+  others.forEach(d => { d.anim = { id: 'music', p0 }; d.fx = null; d.lastFrame = null; });
   $('mStatus').textContent = '♪ en cours'; markPlaying(); fillNative(); mSave();
 }
 function musicStop() {
@@ -1309,13 +1327,14 @@ $('mStart').onclick = musicStart;
 $('mStop').onclick = musicStop;
 $('mRefresh').onclick = () => listSources(true);
 $('mDelay').oninput = e => { $('mDelayVal').textContent = e.target.value + ' ms'; mSave(); };
-['mSrc', 'mMode', 'mSens'].forEach(id => $(id).addEventListener('change', () => {
+['mSrc', 'mMode', 'mSens', 'mCurtain'].forEach(id => $(id).addEventListener('change', () => {
   mSave(); if (id === 'mSrc' && (music.stream || music.phone)) { musicStop(); log('Source changée : clique sur Démarrer.'); }
 }));
 {
   const st = store.get('music', {});
   if (st.mode) $('mMode').value = st.mode;
   if (st.sens) $('mSens').value = st.sens;
+  if (st.curtain !== undefined) $('mCurtain').value = st.curtain;
   if (st.delay) { $('mDelay').value = st.delay; $('mDelayVal').textContent = st.delay + ' ms'; }
   if (navigator.mediaDevices) listSources(false);
 }
@@ -1582,13 +1601,13 @@ $('diyColorBack').onclick = () => diyTargets().forEach(d => { diyStop(d); send(d
    [3, mode<<4 | auto, sensibilité, luminosité×10 (2 o), teinte (2 o), saturation×10 (2 o)].
    Modes 1–4 = micro du rideau : 1 énergie, 2 rythme, 3 défilement, 4 spectre. */
 let nmMode = 0;
-function nmSend(mode) {
-  const list = targets().filter(d => d.proto.id === 'fairy');
+function nmSend(mode, only, sens) {
+  const list = only || targets().filter(d => d.proto.id === 'fairy');
   if (!list.length) return log('Aucun rideau connecté dans cet onglet.');
   nmMode = mode;
   const [h, s] = rgbToHsv(state.r, state.g, state.b);
   const auto = $('nmAuto').checked || mode === 1 ? 1 : 0;
-  const pkt = fairy([0xaa, 0x03, 0x09, 0x03, (mode << 4) | auto, +$('nmSens').value,
+  const pkt = fairy([0xaa, 0x03, 0x09, 0x03, (mode << 4) | auto, sens || +$('nmSens').value,
     ...be16(clamp(state.bright, 1, 100) * 10), ...be16(Math.round(h * 360) % 360), ...be16(Math.round(s * 1000))]);
   list.forEach(d => { d.anim = null; d.fx = null; if (d.diy) diyStop(d); send(d, pkt); });
   document.querySelectorAll('[data-nm]').forEach(b => b.classList.toggle('playing', +b.dataset.nm === mode));
@@ -1654,7 +1673,7 @@ renderTargets();
 if (navigator.bluetooth) autoReconnect();
 window.__androidPermissionsChanged = () => { autoReconnect(); listSources(false); };
 if (IS_ANDROID) document.querySelectorAll('.pc-only').forEach(e => e.remove());
-log('Lampes — version 20' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
+log('Lampes — version 21' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
 </script>
 </body>
 </html>
