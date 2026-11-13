@@ -70,7 +70,7 @@
 </head>
 <body>
 <main>
-  <h1><img id="logoLapin" alt="" style="width:34px; height:34px; vertical-align:-8px; border-radius:8px; margin-right:6px">Bluetooth Lamps <span class="muted" style="font-size:13px; font-weight:400">version 70</span></h1>
+  <h1><img id="logoLapin" alt="" style="width:34px; height:34px; vertical-align:-8px; border-radius:8px; margin-right:6px">Bluetooth Lamps <span class="muted" style="font-size:13px; font-weight:400">version 71</span></h1>
   <p class="sub">Sticks, curtain and other Bluetooth LED lamps, controlled together or by group.</p>
 
   <div id="nobt" class="card warn hidden">
@@ -229,10 +229,35 @@
     </div>
   </div>
 
+  <div class="card hidden" id="myCard">
+    <h2>✨ Animation</h2>
+    <p class="muted" style="margin:0 0 10px">Pick your colours, then a mode. Tap a colour to remove it. Rainbow uses the sticks' own rainbow, which runs along the LEDs; Direction flips it.</p>
+    <div class="row" style="margin-top:0">
+      <div id="myPal" style="display:flex; gap:8px; flex-wrap:wrap"></div>
+      <button id="myAdd">+ Add the wheel colour</button>
+    </div>
+    <div class="row" id="myModes">
+      <button data-my="fixed">🎯 Fixed</button><button data-my="jump">⏭️ Jump</button><button data-my="fade">🌫️ Fade</button><button data-my="rainbow">🌈 Rainbow</button>
+      <button data-my="breathe">💗 Breathe</button><button data-my="flash">💡 Flash</button><button data-my="strobe">⚡ Strobe</button>
+    </div>
+    <div class="row">
+      <label class="lbl">Speed</label>
+      <input type="range" id="mySpeed" min="1" max="100" value="50">
+    </div>
+    <div class="row">
+      <label class="lbl">Direction</label>
+      <button id="myDir">→ Forward</button>
+      <button id="myStop">■ Stop</button>
+    </div>
+    <p class="muted" style="margin:8px 0 0">Fixed with several colours: each lamp gets the next colour (stick 1 = colour 1, stick 2 = colour 2…).</p>
+  </div>
+
   <div class="card hidden" id="nativeCard">
     <h2 id="nativeTitle">Group animations</h2>
     <p class="muted" style="margin:0 0 12px">Animations stored in this group's lamps. They keep running even when the page is closed.</p>
+    <details id="nativeMore" open><summary id="nativeMoreSum" class="hidden" style="margin-bottom:10px">All built-in effects</summary>
     <div class="fxgrid" id="nativeGrid"></div>
+    </details>
     <div class="row" style="margin-top:14px">
       <label class="lbl">Speed</label>
       <input type="range" id="speed" min="1" max="100" value="50">
@@ -1088,7 +1113,7 @@ const applyColor = throttle(() => each(d => {
   // autres effets musicaux (ils n'utilisent pas ta couleur) : la couleur choisie les remplace sur cette lampe
   if (d.diy) diyStop(d);
   if (d.live || d.liveVisual) { d.live = null; d.liveReady = null; d.liveVisual = null; d.staticImg = null; d.fw = null; }
-  d.anim = null;
+  d.anim = null; d.myMode = null;
   d.whiteMode = false; d.fx = null;
   send(d, colorFrame(d, state.r, state.g, state.b));
 }));
@@ -1205,10 +1230,19 @@ function feuxArtifice(p, k) {
   const fade = Math.exp(-(e - 0.05) * 6) * (0.75 + 0.25 * rnd(Math.floor(p * 25), k));   // retombée qui scintille
   return fade < 0.04 ? [0, 0, 0] : hsvToRgb(rnd(i, k + 200), rnd(i, k + 300) < 0.2 ? 0.3 : 1, fade);
 }
+var myRev = (() => { try { return localStorage.getItem('myRev') === '1'; } catch (e) { return false; } })();   // sens de l'arc-en-ciel
+let myColors = (() => { try { const v = JSON.parse(localStorage.getItem('myColors')); if (Array.isArray(v) && v.length) return v; } catch (e) {} return [[255, 0, 0], [0, 80, 255]]; })();
+const PAL = () => myColors;
 const CEN = { rouge:'red', vert:'green', bleu:'blue', jaune:'yellow', cyan:'cyan', violet:'purple', blanc:'white' };
 const ANIMS = [
   { h:'Ambience' },
   { id:'music',  name:'🎵 Music', hidden: true, fn: (p, k) => musicColor(k) },
+  { id:'my_jump',    name:'✨ Animation — jump',    hidden: true, fn: p => saut(PAL())(p) },
+  { id:'my_fade',    name:'✨ Animation — fade',    hidden: true, fn: p => fondu(PAL())(p) },
+  { id:'my_breathe', name:'✨ Animation — breathe', hidden: true, fn: p => respire(PAL()[Math.floor(p / 2) % PAL().length])(p) },
+  { id:'my_flash',   name:'✨ Animation — flash',   hidden: true, fn: p => clignote(PAL())(p) },
+  { id:'my_rainbow', name:'🌈 Rainbow', hidden: true, fn: p => hsvToRgb(((myRev ? -p : p) / 8 % 1 + 1) % 1, 1, 1) },
+  { id:'my_strobe',  name:'✨ Animation — strobe',  hidden: true, fn: p => (p * 6) % 2 < 1 ? PAL()[Math.floor(p * 3) % PAL().length] : [0, 0, 0] },
   { id:'wheel',  name:'🌈 Colour wheel disc', fn: p => {
       const c = devices.find(d => d.sweep && d.liveVisual === 'wheel' && d.live);
       if (c) return hsvToRgb(sweepHue(c) / 360, 1, 1);                         // même couleur que l'aiguille du rideau
@@ -1298,7 +1332,7 @@ function startAnim(id, list) {
   const p0 = clock.p;
   devices.forEach(d => { if (d.anim && d.anim.id === id) d.anim.p0 = p0; });
   nativeSel = null; fillNative();
-  t.forEach(d => { if (d.diy) diyStop(d); d.nm = null; d.live = null;
+  t.forEach(d => { if (d.diy) diyStop(d); d.nm = null; d.live = null; d.myMode = null;
     d.anim = { id, p0 }; d.fx = null; d.whiteMode = false; d.lastFrame = null;
     if (d.proto.bright) send(d, d.proto.bright(state.bright), true); });
   if (LIVE_ANIMS[id]) {                                 // rideau : dessiné pixel par pixel (roue en disque, vrai feu)
@@ -1311,20 +1345,88 @@ function startAnim(id, list) {
 }
 function stopAnim() { each(d => { d.anim = null; if (d.liveVisual) { d.live = null; d.liveVisual = null; } }); log('■ Animations stopped — ' + (target === '*' ? 'all' : target)); markPlaying(); }
 function markPlaying() {
+  if (typeof myRender === 'function' && $('myPal')) setTimeout(myRender, 0);
   const playing = new Set(targets().filter(d => d.anim).map(d => d.anim.id));
   document.querySelectorAll('#fxgrid button').forEach(b => b.classList.toggle('playing', playing.has(b.dataset.id)));
 }
 $('anStop').onclick = stopAnim;
+/* ---------- Mes couleurs : choisir ses couleurs puis un mode simple ---------- */
+var myMode = null;   // var : lu par fillNative() au démarrage
+function mySave() { try { localStorage.setItem('myColors', JSON.stringify(myColors)); } catch (e) {} }
+function myRender() {
+  $('myPal').innerHTML = '';
+  myColors.forEach((c, i) => {
+    const b = document.createElement('button'); b.className = 'sw'; b.style.background = `rgb(${c.join(',')})`; b.title = 'Remove';
+    b.onclick = () => { if (myColors.length > 1) { myColors.splice(i, 1); mySave(); myRender(); if (myMode === 'fixed') myApply('fixed'); } };
+    $('myPal').appendChild(b);
+  });
+  $('myAdd').disabled = myColors.length >= 7;
+  document.querySelectorAll('[data-my]').forEach(b => b.classList.toggle('playing', b.dataset.my === myMode && targets().some(d => (d.anim && d.anim.id.startsWith('my_')) || d.myMode === myMode)));
+}
+function myApply(mode) {
+  const t = targets(); if (!t.length) return log('No lamp ready in this tab.');
+  myMode = mode;
+  t.forEach(d => { d.myMode = null; });
+  if (mode === 'rainbow') {
+    // sticks : leur propre arc-en-ciel intégré (1 = un sens, 2 = l'autre sens) ; les autres lampes : arc-en-ciel de l'app
+    const code = myRev ? 0x02 : 0x01;
+    const sticks = t.filter(d => d.proto.id === 'melk' || d.proto.id === 'elk'), others = t.filter(d => !sticks.includes(d));
+    sticks.forEach(d => {
+      d.anim = null; d.nm = null; d.fx = null; d.whiteMode = false; d.myMode = mode;
+      send(d, d.proto.power(true), true); send(d, d.proto.effect(code)); if (d.proto.speed) send(d, d.proto.speed(+$('mySpeed').value));
+    });
+    if (others.length) startAnim('my_rainbow', others);
+    log(`🌈 Rainbow ${myRev ? '←' : '→'} (${t.length} lamp${t.length > 1 ? 's' : ''})`); markPlaying(); myRender();
+    return;
+  }
+  if (mode === 'fixed') {
+    t.forEach((d, i) => {
+      if (d.diy) diyStop(d); if (d.live || d.liveVisual) { d.live = null; d.liveReady = null; d.liveVisual = null; }
+      d.anim = null; d.nm = null; d.fx = null; d.whiteMode = false; d.myMode = 'fixed';
+      const c = myColors[i % myColors.length];
+      send(d, d.proto.power(true), true); send(d, colorFrame(d, c[0], c[1], c[2]));
+    });
+    log(`✨ Animation — fixed (${t.length} lamp${t.length > 1 ? 's' : ''})`); markPlaying();
+  } else startAnim('my_' + mode);
+  myRender();
+}
+document.querySelectorAll('[data-my]').forEach(b => b.onclick = () => myApply(b.dataset.my));
+$('myAdd').onclick = () => { myColors.push([state.r, state.g, state.b]); mySave(); myRender(); if (myMode === 'fixed') myApply('fixed'); };
+$('myStop').onclick = () => {
+  targets().forEach(d => { if (d.myMode && d.myMode.startsWith('rainbow')) send(d, colorFrame(d, state.r, state.g, state.b)); d.myMode = null; });
+  myMode = null; stopAnim(); myRender();
+};
+const myDirShow = () => { $('myDir').textContent = myRev ? '← Reverse' : '→ Forward'; };
+myDirShow();
+$('myDir').onclick = () => {
+  myRev = !myRev; try { localStorage.setItem('myRev', myRev ? '1' : '0'); } catch (e) {}
+  myDirShow();
+  if (myMode === 'rainbow' && targets().some(d => d.myMode === 'rainbow' || (d.anim && d.anim.id === 'my_rainbow'))) myApply('rainbow');
+};
+$('nativeMoreSum').addEventListener('click', () => { $('nativeMore').dataset.touched = '1'; });
+$('mySpeed').value = $('anSpeed').value;
+$('mySpeed').oninput = throttle(() => {
+  $('anSpeed').value = $('mySpeed').value; $('anSpeed').dispatchEvent(new Event('input'));
+  targets().forEach(d => { if (d.myMode && d.myMode.startsWith('rainbow') && d.proto.speed) send(d, d.proto.speed(+$('mySpeed').value)); });
+}, 150);
+myRender();
 
 /* ---------- Animations intégrées (par type de lampe) ---------- */
 let nativeSel = null; // 'protoId:valeur' de la dernière animation intégrée lancée
 function fillNative() {
+  $('myCard').classList.toggle('hidden', !targets().some(d => d.proto));   // sticks, rideau ou tout
+  if (typeof myRender === 'function') myRender();
   const card = $('nativeCard'), grid = $('nativeGrid');
   grid.innerHTML = '';
   if (target === '*') { card.classList.add('hidden'); return; }   // « Tout » : seulement les synchronisées
   const protos = [...new Map(targets().map(d => [d.proto.id, d.proto])).values()].filter(p => p.effects && p.effects.length);
   if (!protos.length) { card.classList.add('hidden'); return; }
   card.classList.remove('hidden');
+  const fold = !protos.some(p => p.id === 'fairy');                 // sticks : la longue liste reste repliée
+  $('nativeMoreSum').classList.toggle('hidden', !fold);
+  if (fold && !$('nativeMore').dataset.touched) $('nativeMore').open = false;
+  if (!fold) $('nativeMore').open = true;
+  $('nativeMoreSum').textContent = `All built-in effects (${protos.reduce((a, p) => a + p.effects.length, 0)}) — fixed colours, chosen by the lamp`;
   $('nativeTitle').textContent = 'Built-in animations ' + (target.toLowerCase() === 'curtain' ? 'of the curtain' : target.toLowerCase() === 'sticks' ? 'of the sticks' : 'of group ' + target);
   const themed = protos.some(p => p.effects.some(e => e[2]));
   grid.className = themed ? '' : 'fxgrid';
@@ -1381,7 +1483,7 @@ function sendNative() {
   $('speedStill').classList.toggle('hidden', !still);
   each(d => {
     const p = d.proto; if (p.id !== pid) return;
-    d.anim = null; d.nm = null;
+    d.anim = null; d.nm = null; d.myMode = null;
     if (d.live || d.liveVisual) { d.live = null; d.liveReady = null; d.liveVisual = null; }   // le rideau quitte le mode panneau : à refaire au prochain dessin
     if (p.effectFrames) { d.fx = m; p.effectFrames(m, s, state.bright).forEach(f => send(d, f)); }
     else if (p.speedInEffect) send(d, p.effect(m, clamp(32 - s*0.31, 1, 31)));
@@ -2761,7 +2863,7 @@ if (navigator.bluetooth) autoReconnect();
 window.__androidPermissionsChanged = () => { autoReconnect(); listSources(false); };
 if (IS_ANDROID) document.querySelectorAll('.pc-only').forEach(e => e.remove());
 $('logoLapin').src = $('favicon').href;   // le lapin Lampes en en-tête
-log('Lamps — version 70' + (IS_ANDROID ? ' (Android)' : '') + '. Ready.');
+log('Lamps — version 71' + (IS_ANDROID ? ' (Android)' : '') + '. Ready.');
 </script>
 </body>
 </html>
