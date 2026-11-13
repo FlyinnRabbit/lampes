@@ -70,7 +70,7 @@
 </head>
 <body>
 <main>
-  <h1><img id="logoLapin" alt="" style="width:34px; height:34px; vertical-align:-8px; border-radius:8px; margin-right:6px">Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 67</span></h1>
+  <h1><img id="logoLapin" alt="" style="width:34px; height:34px; vertical-align:-8px; border-radius:8px; margin-right:6px">Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 68</span></h1>
   <p class="sub">Sticks, rideau et autres lampes LED Bluetooth, pilotés ensemble ou par groupe.</p>
 
   <div id="nobt" class="card warn hidden">
@@ -306,7 +306,7 @@
     <details class="hidden" id="mSpecTune" style="margin-top:6px; padding:12px; border:1px solid var(--line); border-radius:12px">
       <summary>⚙️ Réglages avancés du rideau</summary>
       <div class="row">
-        <span style="flex:1">Plusieurs LED par paquet<br><span class="muted">20 LED : réglage conseillé pour ton rideau</span></span>
+        <span style="flex:1">Plusieurs LED par paquet<br><span class="muted">Non : le plus rapide sur ton rideau (testé)</span></span>
         <button id="liveMultiBtn" style="min-width:90px; font-weight:700">Non</button>
         <input type="checkbox" id="liveMulti" class="hidden">
       </div>
@@ -1997,13 +1997,14 @@ $('diyColorBack').onclick = () => diyTargets().forEach(d => { diyStop(d); send(d
   });
   const lbl = () => { $('liveHeightVal').textContent = $('liveHeight').value + ' %'; $('liveBudgetVal').textContent = $('liveBudget').value; $('liveGapVal').textContent = $('liveGap').value + ' ms'; $('liveRefreshVal').textContent = $('liveRefresh').value + ' LED'; };
   ['liveBudget', 'liveGap', 'liveRefresh', 'liveHeight'].forEach(id => $(id).addEventListener('input', lbl)); lbl();
-  // Testé sur le rideau Hello Fairy : 20 LED par paquet OK, 79 le fige. Choix : Non → 6 → 20 → 40 (à essayer)
-  const MULTI = [1, 6, 20, 40];
-  if (!store.get('multi67')) {                                  // une fois : 20 LED par paquet par défaut
-    store.set('multi67', 1); store.set('liveMultiN', 20);
-    $('liveMulti').checked = true; $('liveMulti').dispatchEvent(new Event('change'));
+  // Testé sur le rideau Hello Fairy : accepte jusqu'à 20 LED par paquet (79 le fige) mais c'est PLUS LENT
+  // qu'une LED par paquet → « Non » par défaut. Choix restants : Non → 6 → 20
+  const MULTI = [1, 6, 20];
+  if (!store.get('multi68')) {                                  // une fois : retour à une LED par paquet
+    store.set('multi68', 1); store.set('liveMultiN', 1);
+    $('liveMulti').checked = false; $('liveMulti').dispatchEvent(new Event('change'));
   }
-  window.liveMultiN = () => $('liveMulti').checked ? Math.min(40, +store.get('liveMultiN', 20) || 20) : 1;
+  window.liveMultiN = () => $('liveMulti').checked ? Math.min(20, +store.get('liveMultiN', 6) || 6) : 1;
   const multiShow = () => { const n = liveMultiN(); $('liveMultiBtn').textContent = n <= 1 ? 'Non' : n + ' LED'; $('liveMultiBtn').classList.toggle('sel', n > 1); };
   $('liveMultiBtn').onclick = () => {
     devices.forEach(d => { d.wheelStep = undefined; });
@@ -2607,7 +2608,7 @@ if (navigator.bluetooth) autoReconnect();
 window.__androidPermissionsChanged = () => { autoReconnect(); listSources(false); };
 if (IS_ANDROID) document.querySelectorAll('.pc-only').forEach(e => e.remove());
 $('logoLapin').src = $('favicon').href;   // le lapin Lampes en en-tête
-log('Lampes — version 67' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
+log('Lampes — version 68' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
 </script>
 </body>
 </html>
