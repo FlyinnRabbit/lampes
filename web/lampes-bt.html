@@ -69,7 +69,7 @@
 </head>
 <body>
 <main>
-  <h1>💡 Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 58</span></h1>
+  <h1>💡 Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 59</span></h1>
   <p class="sub">Sticks, rideau et autres lampes LED Bluetooth, pilotés ensemble ou par groupe.</p>
 
   <div id="nobt" class="card warn hidden">
@@ -142,7 +142,7 @@
         <div id="diyStatus" class="muted"></div>
       </div>
     </div>
-    <div style="margin-top:14px; padding-top:12px; border-top:1px solid var(--line)">
+    <div class="hidden" style="margin-top:14px; padding-top:12px; border-top:1px solid var(--line)">   <!-- ligne de tempo manuelle : retirée -->
       <div style="font-weight:600; margin-bottom:8px">🎵 Ligne de tempo</div>
       <div class="row">
         <span id="tempoBpm" style="font-size:22px; font-weight:700; min-width:110px">♩ — BPM</span>
@@ -171,7 +171,7 @@
       <div class="muted" style="margin-top:4px">Calage : à régler une fois — si la ligne arrive en retard sur le temps, augmente ; en avance, diminue.</div>
     </div>
     <details style="margin-top:10px">
-      <summary>Réglages si le dessin apparaît à l'envers ou n'apparaît pas</summary>
+      <summary>⚙️ Réglages avancés (dessin à l'envers, diagnostic)</summary>
       <div class="row" style="margin-top:10px">
         <button data-diy="test">➡️ Mire de test</button>
         <span class="muted">Flèche rouge vers la droite, carré vert en haut à gauche.</span>
@@ -285,10 +285,6 @@
       <label class="lbl">Rideau</label>
       <select id="mCurtain" style="flex:1; min-width:220px">
         <option value="-1" selected>📺 Spectre du son de l'app (Tidal…) en direct</option>
-        <option value="4">📻 Spectre — micro du rideau</option>
-        <option value="1">🔊 Énergie — micro du rideau</option>
-        <option value="2">🥁 Rythme — micro du rideau</option>
-        <option value="3">🌀 Défilement — micro du rideau</option>
         <option value="0">🎨 Mêmes couleurs que les sticks</option>
       </select>
     </div>
@@ -306,8 +302,9 @@
         <option value="vu">🎚️ VU-mètre graves / aigus</option>
       </select>
     </div>
-    <div class="hidden" id="mSpecTune" style="margin-top:6px; padding:12px; border:1px solid var(--line); border-radius:12px">
-      <div class="row" style="margin-top:0">
+    <details class="hidden" id="mSpecTune" style="margin-top:6px; padding:12px; border:1px solid var(--line); border-radius:12px">
+      <summary>⚙️ Réglages avancés du rideau</summary>
+      <div class="row">
         <span style="flex:1">Plusieurs LED par paquet<br><span class="muted">beaucoup plus rapide, à essayer</span></span>
         <button id="liveMultiBtn" style="min-width:90px; font-weight:700">Non</button>
         <input type="checkbox" id="liveMulti" class="hidden">
@@ -317,7 +314,7 @@
       <div class="row"><label class="lbl">Pause</label><input type="range" id="liveGap" min="0" max="40" value="10"><span class="muted" id="liveGapVal" style="width:60px">10 ms</span></div>
       <div class="row"><label class="lbl">Rattrapage</label><input type="range" id="liveRefresh" min="0" max="20" value="6"><span class="muted" id="liveRefreshVal" style="width:60px">6 LED</span></div>
       <div class="muted" style="margin-top:6px">Des LED restent éteintes : baisse « LED / image » ou monte « Pause ». C'est propre mais lent : fais l'inverse.</div>
-    </div>
+    </details>
     <div class="row">
       <label class="lbl">Sensibilité</label>
       <input type="range" id="mSens" min="1" max="100" value="60">
@@ -365,8 +362,10 @@
   </div>
 
   <div class="card">
-    <h2>Journal</h2>
-    <div id="log"></div>
+    <details id="logBox">
+      <summary style="font-weight:600">📋 Journal <span class="muted" style="font-weight:400">(à ouvrir pour m'envoyer les infos en cas de souci)</span></summary>
+      <div id="log" style="margin-top:10px"></div>
+    </details>
   </div>
 </main>
 
@@ -995,7 +994,7 @@ function renderTargets() {
   $('syncCard').classList.toggle('hidden', sticksOnly);
   $('sceneCard').classList.toggle('hidden', target !== '*');
   if (typeof renderFav === 'function') renderFav();
-  $('nmCard').classList.toggle('hidden', target === '*' || !t.some(d => d.proto.id === 'fairy'));
+  $('nmCard').classList.add('hidden');   // musique par le micro du rideau : retirée (l'app envoie le son elle-même)
   $('diyCard').classList.toggle('hidden', !IS_ANDROID || target === '*' || !t.some(d => d.proto.id === 'fairy'));
   // « Tout » : seulement les animations retenues ; les autres onglets gardent toute la bibliothèque
   const ALL_TAB = ['wheel', 'police'];
@@ -1652,7 +1651,7 @@ $('mSpecStyle').addEventListener('change', () => devices.forEach(d => { if (d.li
   const st = store.get('music', {});
   if (st.mode) $('mMode').value = st.mode;
   if (st.sens) $('mSens').value = st.sens;
-  if (st.curtain !== undefined) $('mCurtain').value = st.curtain;
+  if (st.curtain !== undefined) { $('mCurtain').value = st.curtain; if ($('mCurtain').selectedIndex < 0) $('mCurtain').value = '-1'; }
   if (st.specStyle) $('mSpecStyle').value = st.specStyle;
   if (st.delay) { $('mDelay').value = st.delay; $('mDelayVal').textContent = st.delay + ' ms'; }
   if (navigator.mediaDevices) listSources(false);
@@ -2325,8 +2324,12 @@ async function liveSendFrame(d) {
   const now = performance.now();
   if (!d.liveStat) d.liveStat = now;
   if (now - d.liveStat > 5000) {
-    log(`📺 ${Math.round(d.liveCount * 1000 / (now - d.liveStat))} LED/s envoyées · ${changes.length} en attente`
-      + (!$('liveMulti').checked && changes.length > 40 ? ' — conseil : « Plusieurs LED par paquet » sur Oui' : ''));
+    // journal : seulement quand le rideau prend du retard, et au plus une fois toutes les 30 s
+    if (changes.length > 40 && (!d.liveWarnAt || now - d.liveWarnAt > 30000)) {
+      d.liveWarnAt = now;
+      log(`📺 Rideau en retard : ${Math.round(d.liveCount * 1000 / (now - d.liveStat))} LED/s envoyées · ${changes.length} en attente`
+        + (!$('liveMulti').checked ? ' — conseil : « Plusieurs LED par paquet » sur Oui (Réglages avancés)' : ''));
+    }
     d.liveStat = now; d.liveCount = 0;
   }
 }
@@ -2544,7 +2547,7 @@ renderTargets();
 if (navigator.bluetooth) autoReconnect();
 window.__androidPermissionsChanged = () => { autoReconnect(); listSources(false); };
 if (IS_ANDROID) document.querySelectorAll('.pc-only').forEach(e => e.remove());
-log('Lampes — version 58' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
+log('Lampes — version 59' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
 </script>
 </body>
 </html>
