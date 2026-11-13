@@ -46,8 +46,8 @@ public class LampesService extends Service {
         }
         NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
         if (Build.VERSION.SDK_INT >= 26 && nm.getNotificationChannel(CHANNEL) == null) {
-            NotificationChannel ch = new NotificationChannel(CHANNEL, "Lampes en arrière-plan", NotificationManager.IMPORTANCE_LOW);
-            ch.setDescription("Garde les animations et le mode musique actifs quand l'app n'est pas affichée");
+            NotificationChannel ch = new NotificationChannel(CHANNEL, "Lamps in the background", NotificationManager.IMPORTANCE_LOW);
+            ch.setDescription("Keeps animations and music mode running when the app is not shown");
             nm.createNotificationChannel(ch);
         }
         int piFlags = PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE;
@@ -57,11 +57,11 @@ public class LampesService extends Service {
                 new Intent(this, LampesService.class).setAction(STOP), piFlags);
         Notification.Builder b = Build.VERSION.SDK_INT >= 26 ? new Notification.Builder(this, CHANNEL) : new Notification.Builder(this);
         Notification n = b.setSmallIcon(R.drawable.ic_notif)
-                .setContentTitle("Lampes pilote tes lumières")
-                .setContentText("Animations et musique actives en arrière-plan")
+                .setContentTitle("Lamps is controlling your lights")
+                .setContentText("Animations and music running in the background")
                 .setContentIntent(open)
                 .setOngoing(true)
-                .addAction(new Notification.Action.Builder(null, "Arrêter", stop).build())
+                .addAction(new Notification.Action.Builder(null, "Stop", stop).build())
                 .build();
         try {
             if (Build.VERSION.SDK_INT >= 29) {

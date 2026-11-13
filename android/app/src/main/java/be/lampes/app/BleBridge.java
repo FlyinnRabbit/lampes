@@ -106,9 +106,9 @@ public class BleBridge {
         main.post(() -> {
             try {
                 stopScanNow();
-                if (adapter == null || !adapter.isEnabled()) { js("__ble.onScanError('Bluetooth éteint')"); return; }
+                if (adapter == null || !adapter.isEnabled()) { js("__ble.onScanError('Bluetooth is off')"); return; }
                 scanner = adapter.getBluetoothLeScanner();
-                if (scanner == null) { js("__ble.onScanError('Bluetooth indisponible')"); return; }
+                if (scanner == null) { js("__ble.onScanError('Bluetooth unavailable')"); return; }
                 scanCb = new ScanCallback() {
                     @Override public void onScanResult(int type, ScanResult r) { report(r); }
                     @Override public void onBatchScanResults(List<ScanResult> list) { for (ScanResult r : list) report(r); }
@@ -203,7 +203,7 @@ public class BleBridge {
                     failAll(c);
                     try { g.close(); } catch (Exception ignored) { }
                     if (conns.get(c.addr) == c) conns.remove(c.addr);
-                    js("__ble.onDisconnected(" + q(c.addr) + "," + q("statut " + status) + ")");
+                    js("__ble.onDisconnected(" + q(c.addr) + "," + q("status " + status) + ")");
                 });
             }
         }

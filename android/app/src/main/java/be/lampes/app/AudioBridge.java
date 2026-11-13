@@ -29,7 +29,7 @@ public class AudioBridge {
             return "ok";
         } catch (Throwable e) {
             vis = null;
-            return "erreur : " + e.getMessage();
+            return "error: " + e.getMessage();
         }
     }
 
