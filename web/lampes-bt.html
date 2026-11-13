@@ -70,7 +70,7 @@
 </head>
 <body>
 <main>
-  <h1><img id="logoLapin" alt="" style="width:34px; height:34px; vertical-align:-8px; border-radius:8px; margin-right:6px">Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 65</span></h1>
+  <h1><img id="logoLapin" alt="" style="width:34px; height:34px; vertical-align:-8px; border-radius:8px; margin-right:6px">Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 66</span></h1>
   <p class="sub">Sticks, rideau et autres lampes LED Bluetooth, pilotés ensemble ou par groupe.</p>
 
   <div id="nobt" class="card warn hidden">
@@ -925,7 +925,7 @@ async function useProtocol(d, p) {
 // Veille : une lampe silencieuse depuis 20 s reçoit une petite trame sans effet visible ; si elle ne passe plus,
 // on coupe proprement et la reconnexion automatique la reprend (au lieu d'une lampe « figée »)
 setInterval(() => devices.forEach(async d => {
-  if (!d.char || !d.proto || !d.device.gatt.connected || d.connecting || d.pending || d.watching) return;
+  if (!d.char || !d.proto || !d.device.gatt.connected || d.connecting || d.pending || d.watching || d.live || d.diy) return;
   if (performance.now() - (d.lastSend || 0) < 20000) return;
   const frame = d.proto.id === 'fairy' ? fairy([0xaa, 0x01, 0x00]) : d.proto.bright ? d.proto.bright(state.bright) : null;
   if (!frame) return;
@@ -1800,7 +1800,8 @@ async function listen(d) {
     await ch.startNotifications();
     ch.addEventListener('characteristicvaluechanged', ev => {
       const b = new Uint8Array(ev.target.value.buffer);
-      if (b[1] === 0x01 && d.watchQuiet) { d.watchQuiet = false; }            // réponse à la veille : pas dans le journal
+      const quiet = b[1] === 0x01 && d.watchQuiet;                          // réponse à la veille : pas dans le journal
+      if (quiet) d.watchQuiet = false;
       else if (b[1] !== 0xd1 || (d.d1acks = (d.d1acks || 0) + 1) <= 3)        // pas une ligne par LED
         log(`← rideau : ${hex(b.slice(0, 12))}${b.length > 12 ? ' …' : ''}${b[1] === 0xd1 && d.d1acks === 3 ? '  (réponses suivantes masquées)' : ''}`);
       if (d.ackWait && b[0] === 0xaa && b[1] === d.ackWait.cmd) { const w = d.ackWait; d.ackWait = null; w.res(true); }
@@ -1811,7 +1812,7 @@ async function listen(d) {
           const m = q[5] >> 4, names = ['', 'énergie', 'rythme', 'défilement', 'spectre'];
           txt += ` → ${names[m] || 'mode ' + m} (${m <= 4 ? 'micro du rideau' : 'micro du téléphone'}), sensibilité ${q[6]}, luminosité ${((q[7] << 8) | q[8]) / 10} %`;
         }
-        log(txt);
+        if (!quiet) log(txt);
       }
       if (b[0] === 0xaa && b[1] === 0x00 && b.length > 30) {
         const p = b.slice(3);
@@ -1996,11 +1997,20 @@ $('diyColorBack').onclick = () => diyTargets().forEach(d => { diyStop(d); send(d
   });
   const lbl = () => { $('liveHeightVal').textContent = $('liveHeight').value + ' %'; $('liveBudgetVal').textContent = $('liveBudget').value; $('liveGapVal').textContent = $('liveGap').value + ' ms'; $('liveRefreshVal').textContent = $('liveRefresh').value + ' LED'; };
   ['liveBudget', 'liveGap', 'liveRefresh', 'liveHeight'].forEach(id => $(id).addEventListener('input', lbl)); lbl();
-  const multiShow = () => { const on = $('liveMulti').checked; $('liveMultiBtn').textContent = on ? 'Oui' : 'Non'; $('liveMultiBtn').classList.toggle('sel', on); };
+  // Non → 2 → 6 → 20 → Max → Non : pour trouver la taille de paquet que le rideau accepte
+  const MULTI = [1, 2, 6, 20, 79];
+  if (store.get('liveMultiN') === undefined && $('liveMulti').checked) {   // « Max » a figé le rideau : on repart de Non
+    store.set('liveMultiN', 1); $('liveMulti').checked = false; $('liveMulti').dispatchEvent(new Event('change'));
+  }
+  window.liveMultiN = () => $('liveMulti').checked ? (+store.get('liveMultiN', 79) || 79) : 1;
+  const multiShow = () => { const n = liveMultiN(); $('liveMultiBtn').textContent = n <= 1 ? 'Non' : n >= 79 ? 'Max' : n + ' LED'; $('liveMultiBtn').classList.toggle('sel', n > 1); };
   $('liveMultiBtn').onclick = () => {
     devices.forEach(d => { d.wheelStep = undefined; });
-    $('liveMulti').checked = !$('liveMulti').checked; $('liveMulti').dispatchEvent(new Event('change')); multiShow();
-    log(`📺 Plusieurs LED par paquet : ${$('liveMulti').checked ? 'oui' : 'non'}`);
+    const next = MULTI[(MULTI.indexOf(liveMultiN()) + 1) % MULTI.length];
+    store.set('liveMultiN', next);
+    $('liveMulti').checked = next > 1; $('liveMulti').dispatchEvent(new Event('change')); multiShow();
+    log(`📺 Plusieurs LED par paquet : ${next > 1 ? (next >= 79 ? 'max' : next + ' LED') : 'non'}`);
+    devices.forEach(d => { d.liveLogged = 0; });            // montre les 3 premiers paquets suivants dans le journal
     devices.forEach(d => { if (d.live && d.liveImg) d.liveImg.fill(-1); });   // tout renvoyer avec le nouveau mode
   };
   multiShow();
@@ -2355,14 +2365,15 @@ async function liveSendFrame(d) {
   const todo = whole ? picked : picked.concat(refresh.filter(i => !changes.includes(i)));
   if (!todo.length) return;
   const room = Math.max(1, Math.min(79, Math.floor(((d.device.gatt.mtu || 23) - 3 - 4) / 3)));
-  const per = $('liveMulti').checked ? room : 1;               // documenté : une LED par paquet
+  const per = Math.min(room, liveMultiN());                    // documenté : une LED par paquet ; plus = à tester
   const gap = whole && per > 1 ? 0 : +$('liveGap').value;
   for (let i = 0; i < todo.length; i += per) {
     const part = todo.slice(i, i + per);
     const pkt = fairy([0xaa, 0xd1, 3 * part.length, ...part.flatMap(idx => {
       const x = devIndex(Math.floor(idx / N), idx % N); return [x >> 8, x & 0xff, img[idx]]; })]);
-    if ((d.liveLogged = (d.liveLogged || 0) + 1) <= 3) log(`→ pixel : ${hex(pkt)}`);
+    if ((d.liveLogged = (d.liveLogged || 0) + 1) <= 3) log(part.length > 1 ? `→ paquet de ${part.length} LED : ${hex(pkt.slice(0, 12))} …` : `→ pixel : ${hex(pkt)}`);
     await writeRetry(d.char, new Uint8Array(pkt), 'noresp');
+    d.lastSend = performance.now();
     part.forEach(idx => sent[idx] = img[idx]);
     d.liveCount = (d.liveCount || 0) + part.length;
     if (gap) await sleep(gap);                                 // laisse le rideau digérer
@@ -2594,7 +2605,7 @@ if (navigator.bluetooth) autoReconnect();
 window.__androidPermissionsChanged = () => { autoReconnect(); listSources(false); };
 if (IS_ANDROID) document.querySelectorAll('.pc-only').forEach(e => e.remove());
 $('logoLapin').src = $('favicon').href;   // le lapin Lampes en en-tête
-log('Lampes — version 65' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
+log('Lampes — version 66' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
 </script>
 </body>
 </html>
