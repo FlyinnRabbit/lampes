@@ -69,7 +69,7 @@
 </head>
 <body>
 <main>
-  <h1>💡 Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 59</span></h1>
+  <h1>💡 Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 60</span></h1>
   <p class="sub">Sticks, rideau et autres lampes LED Bluetooth, pilotés ensemble ou par groupe.</p>
 
   <div id="nobt" class="card warn hidden">
@@ -1382,9 +1382,16 @@ async function openSource() {
   }
   const raw = { echoCancellation: false, noiseSuppression: false, autoGainControl: false };
   if (v === '__screen') {
-    const s = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: raw, systemAudio: 'include' });
+    // « Écran entier » proposé d'office : c'est le seul choix qui transmet le son de Tidal et des autres apps
+    const s = await navigator.mediaDevices.getDisplayMedia({ video: { displaySurface: 'monitor' }, audio: raw, systemAudio: 'include',
+                                                             selfBrowserSurface: 'exclude', surfaceSwitching: 'exclude' });
+    const surf = (s.getVideoTracks()[0] && s.getVideoTracks()[0].getSettings().displaySurface) || '';
     s.getVideoTracks().forEach(t => t.stop());
-    if (!s.getAudioTracks().length) throw new Error('aucun son partagé : coche « Partager l\'audio du système »');
+    if (!s.getAudioTracks().length) { s.getTracks().forEach(t => t.stop()); throw new Error('aucun son partagé : choisis « Écran entier » et coche « Partager aussi l\'audio du système »'); }
+    if (surf && surf !== 'monitor') {
+      s.getTracks().forEach(t => t.stop());
+      throw new Error('tu as partagé ' + (surf === 'window' ? 'une fenêtre' : 'un onglet') + ' : seul son propre son passe, pas Tidal. Recommence en choisissant « Écran entier » et coche « Partager aussi l\'audio du système »');
+    }
     return s;
   }
   return navigator.mediaDevices.getUserMedia({ audio: { deviceId: { exact: v }, ...raw } });
@@ -2547,7 +2554,7 @@ renderTargets();
 if (navigator.bluetooth) autoReconnect();
 window.__androidPermissionsChanged = () => { autoReconnect(); listSources(false); };
 if (IS_ANDROID) document.querySelectorAll('.pc-only').forEach(e => e.remove());
-log('Lampes — version 59' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
+log('Lampes — version 60' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
 </script>
 </body>
 </html>
