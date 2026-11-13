@@ -70,7 +70,7 @@
 </head>
 <body>
 <main>
-  <h1><img id="logoLapin" alt="" style="width:34px; height:34px; vertical-align:-8px; border-radius:8px; margin-right:6px">Bluetooth Lamps <span class="muted" style="font-size:13px; font-weight:400">version 72</span></h1>
+  <h1><img id="logoLapin" alt="" style="width:34px; height:34px; vertical-align:-8px; border-radius:8px; margin-right:6px">Bluetooth Lamps <span class="muted" style="font-size:13px; font-weight:400">version 73</span></h1>
   <p class="sub">Sticks, curtain and other Bluetooth LED lamps, controlled together or by group.</p>
 
   <div id="nobt" class="card warn hidden">
@@ -797,12 +797,13 @@ const PROTOCOLS = [
         list.map((v, k) => [v, list.length > 1 ? `${name} ${k + 1}` : name, cat]));
       // dessiné par l'app (pas enregistré dans le rideau) : [code, nom, thème, libellé du bouton]
       // Drapeaux : ceux à bandes verticales/asymétriques sont redessinés par l'app (le rideau les affiche en miroir)
-      const F = '🏳️ Flags';
+      const EU = '🌍 Europe', AF = '🌍 Africa', AM = '🌎 Americas', AS = '🌏 Asia & Oceania';
       out.splice(out.findIndex(e => e[0] === 32) + 1, 0,
-        ['us', 'United States', F, '🇺🇸 United States'], [34, 'Flag 2', F], ['fr', 'France', F, '🇫🇷 France'],
-        ['au', 'Australia', F, '🇦🇺 Australia'], [37, 'Germany', F], [38, 'Canada', F], ['es', 'Spain', F, '🇪🇸 Spain'],
-        [40, 'England', F], ['it', 'Italy', F, '🇮🇹 Italy'], [42, 'Japan', F],
-        ['be', 'Belgium on a white background', F, '🇧🇪 Belgium'], ['rasta', 'Rasta flag', F, '🟥🟨🟩 Rasta']);
+        ['fr', 'France', EU, '🇫🇷 France'], ['be', 'Belgium on a white background', EU, '🇧🇪 Belgium'], ['it', 'Italy', EU, '🇮🇹 Italy'],
+        ['es', 'Spain', EU, '🇪🇸 Spain'], [37, 'Germany', EU, '🇩🇪 Germany'], [40, 'England', EU, '🏴󠁧󠁢󠁥󠁮󠁧󠁿 England'],
+        ['rasta', 'Rasta flag', AF, '🟥🟨🟩 Rasta'],
+        ['us', 'United States', AM, '🇺🇸 United States'], [38, 'Canada', AM, '🇨🇦 Canada'], [34, 'Flag 2', AM, '🏳️ Flag 2'],
+        ['au', 'Australia', AS, '🇦🇺 Australia'], [42, 'Japan', AS, '🇯🇵 Japan']);
       // drapeaux du monde dessinés par l'app, rangés par région
       WORLD_FLAGS.forEach(([cc, name, region]) => out.push(['wf_' + cc, name, region, flagEmoji(cc) + ' ' + name]));
       // feux d'artifice animés par l'app (fusées + explosions dessinées LED par LED)
@@ -2930,7 +2931,7 @@ if (navigator.bluetooth) autoReconnect();
 window.__androidPermissionsChanged = () => { autoReconnect(); listSources(false); };
 if (IS_ANDROID) document.querySelectorAll('.pc-only').forEach(e => e.remove());
 $('logoLapin').src = $('favicon').href;   // le lapin Lampes en en-tête
-log('Lamps — version 72' + (IS_ANDROID ? ' (Android)' : '') + '. Ready.');
+log('Lamps — version 73' + (IS_ANDROID ? ' (Android)' : '') + '. Ready.');
 </script>
 </body>
 </html>
