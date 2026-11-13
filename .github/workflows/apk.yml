@@ -1,4 +1,4 @@
-name: Fabriquer l'APK
+name: Build the APK and the PC installer
 
 on:
   push:
@@ -23,29 +23,38 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      # la même page sert au PC et au téléphone
-      - name: Copier la page dans l'app
+      # the same page runs on the PC and on the phone
+      - name: Copy the page into the app
         run: |
           mkdir -p android/app/src/main/assets
           cp web/lampes-bt.html android/app/src/main/assets/index.html
 
-      - name: Construire
+      - name: Build
         working-directory: android
         run: gradle assembleRelease --no-daemon --stacktrace
 
-      - name: Renommer
+      - name: Rename
         run: cp android/app/build/outputs/apk/release/app-release.apk Lampes.apk
+
+      # PC installer: installer header + the page, in one self-contained Windows file
+      - name: Build the PC installer
+        run: |
+          VERSION=$(grep -o 'version [0-9]*</span>' web/lampes-bt.html | grep -o '[0-9]*')
+          sed "s/__VERSION__/$VERSION/g" pc/installer-head.cmd > Install-Lamps.cmd
+          sed 's/\r$//; s/$/\r/' web/lampes-bt.html >> Install-Lamps.cmd
 
       - uses: actions/upload-artifact@v4
         with:
-          name: Lampes-apk
-          path: Lampes.apk
+          name: Lamps
+          path: |
+            Lampes.apk
+            Install-Lamps.cmd
 
-      # publie l'APK dans « Releases » : lien direct à ouvrir sur le téléphone
-      - name: Publier
+      # publish both files in "Releases": direct links for the phone and the PC
+      - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="v${{ github.run_number }}"
-          gh release create "$TAG" Lampes.apk --title "Lampes $TAG" \
-            --notes "Télécharge Lampes.apk sur ton téléphone Android et ouvre-le pour l'installer." --latest
+          gh release create "$TAG" Lampes.apk Install-Lamps.cmd --title "Lamps $TAG" \
+            --notes "Phone: download Lampes.apk and open it. PC (Windows): download Install-Lamps.cmd and double-click it." --latest
