@@ -70,7 +70,7 @@
 </head>
 <body>
 <main>
-  <h1><img id="logoLapin" alt="" style="width:34px; height:34px; vertical-align:-8px; border-radius:8px; margin-right:6px">Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 66</span></h1>
+  <h1><img id="logoLapin" alt="" style="width:34px; height:34px; vertical-align:-8px; border-radius:8px; margin-right:6px">Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 67</span></h1>
   <p class="sub">Sticks, rideau et autres lampes LED Bluetooth, pilotés ensemble ou par groupe.</p>
 
   <div id="nobt" class="card warn hidden">
@@ -306,7 +306,7 @@
     <details class="hidden" id="mSpecTune" style="margin-top:6px; padding:12px; border:1px solid var(--line); border-radius:12px">
       <summary>⚙️ Réglages avancés du rideau</summary>
       <div class="row">
-        <span style="flex:1">Plusieurs LED par paquet<br><span class="muted">beaucoup plus rapide, à essayer</span></span>
+        <span style="flex:1">Plusieurs LED par paquet<br><span class="muted">20 LED : réglage conseillé pour ton rideau</span></span>
         <button id="liveMultiBtn" style="min-width:90px; font-weight:700">Non</button>
         <input type="checkbox" id="liveMulti" class="hidden">
       </div>
@@ -1997,19 +1997,20 @@ $('diyColorBack').onclick = () => diyTargets().forEach(d => { diyStop(d); send(d
   });
   const lbl = () => { $('liveHeightVal').textContent = $('liveHeight').value + ' %'; $('liveBudgetVal').textContent = $('liveBudget').value; $('liveGapVal').textContent = $('liveGap').value + ' ms'; $('liveRefreshVal').textContent = $('liveRefresh').value + ' LED'; };
   ['liveBudget', 'liveGap', 'liveRefresh', 'liveHeight'].forEach(id => $(id).addEventListener('input', lbl)); lbl();
-  // Non → 2 → 6 → 20 → Max → Non : pour trouver la taille de paquet que le rideau accepte
-  const MULTI = [1, 2, 6, 20, 79];
-  if (store.get('liveMultiN') === undefined && $('liveMulti').checked) {   // « Max » a figé le rideau : on repart de Non
-    store.set('liveMultiN', 1); $('liveMulti').checked = false; $('liveMulti').dispatchEvent(new Event('change'));
+  // Testé sur le rideau Hello Fairy : 20 LED par paquet OK, 79 le fige. Choix : Non → 6 → 20 → 40 (à essayer)
+  const MULTI = [1, 6, 20, 40];
+  if (!store.get('multi67')) {                                  // une fois : 20 LED par paquet par défaut
+    store.set('multi67', 1); store.set('liveMultiN', 20);
+    $('liveMulti').checked = true; $('liveMulti').dispatchEvent(new Event('change'));
   }
-  window.liveMultiN = () => $('liveMulti').checked ? (+store.get('liveMultiN', 79) || 79) : 1;
-  const multiShow = () => { const n = liveMultiN(); $('liveMultiBtn').textContent = n <= 1 ? 'Non' : n >= 79 ? 'Max' : n + ' LED'; $('liveMultiBtn').classList.toggle('sel', n > 1); };
+  window.liveMultiN = () => $('liveMulti').checked ? Math.min(40, +store.get('liveMultiN', 20) || 20) : 1;
+  const multiShow = () => { const n = liveMultiN(); $('liveMultiBtn').textContent = n <= 1 ? 'Non' : n + ' LED'; $('liveMultiBtn').classList.toggle('sel', n > 1); };
   $('liveMultiBtn').onclick = () => {
     devices.forEach(d => { d.wheelStep = undefined; });
     const next = MULTI[(MULTI.indexOf(liveMultiN()) + 1) % MULTI.length];
     store.set('liveMultiN', next);
     $('liveMulti').checked = next > 1; $('liveMulti').dispatchEvent(new Event('change')); multiShow();
-    log(`📺 Plusieurs LED par paquet : ${next > 1 ? (next >= 79 ? 'max' : next + ' LED') : 'non'}`);
+    log(`📺 Plusieurs LED par paquet : ${next > 1 ? next + ' LED' : 'non'}`);
     devices.forEach(d => { d.liveLogged = 0; });            // montre les 3 premiers paquets suivants dans le journal
     devices.forEach(d => { if (d.live && d.liveImg) d.liveImg.fill(-1); });   // tout renvoyer avec le nouveau mode
   };
@@ -2119,7 +2120,8 @@ function fwStep(st, style) {
   st.rockets = st.rockets.filter(r => {
     r.y += r.vy;
     if (r.y > r.top) return true;
-    const n = { peony: 10, ring: 12, willow: 10, crackle: 10, multi: 12 }[r.style];
+    const rich = typeof liveMultiN === 'function' && liveMultiN() > 1;      // paquets de 20 LED : explosions plus fournies
+    const n = { peony: 10, ring: 12, willow: 10, crackle: 10, multi: 12 }[r.style] * (rich ? 2 : 1);
     for (let i = 0; i < n; i++) {
       const a = r.style === 'ring' ? i / n * 2 * Math.PI : (i + Math.random() * 0.6) / n * 2 * Math.PI;
       const sp = r.style === 'ring' ? 1.3 : r.style === 'willow' ? 0.8 + Math.random() * 0.4 : 0.8 + Math.random() * 0.7;
@@ -2355,7 +2357,9 @@ async function liveSendFrame(d) {
   const refresh = [];
   for (let k = 0; k < +$('liveRefresh').value; k++) { d.liveCursor = ((d.liveCursor || 0) + 1) % (N * N); refresh.push(d.liveCursor); }
   const whole = d.liveVisual === 'wheel' || d.liveVisual === 'fw';   // disque / feux d'artifice : chaque pas part entier                      // disque : chaque cran part entier (il est petit)
-  const budget = whole ? N * N : +$('liveBudget').value;       // LED max par image : le rideau ne suit pas au-delà
+  const room = Math.max(1, Math.min(79, Math.floor(((d.device.gatt.mtu || 23) - 3 - 4) / 3)));
+  const per = Math.min(room, liveMultiN());                    // ton rideau accepte jusqu'à 20 LED par paquet (testé)
+  const budget = whole ? N * N : +$('liveBudget').value * (per > 1 ? 2 : 1);   // LED max par image
   // envoi équitable : on commence après la dernière LED envoyée, sinon le haut du rideau prend toute la place
   const start = changes.findIndex(i => i > (d.liveLast ?? -1));
   const ordered = start > 0 ? changes.slice(start).concat(changes.slice(0, start)) : changes;
@@ -2364,8 +2368,6 @@ async function liveSendFrame(d) {
   d.livePending = changes.length - picked.length;              // LED encore en retard après cette image
   const todo = whole ? picked : picked.concat(refresh.filter(i => !changes.includes(i)));
   if (!todo.length) return;
-  const room = Math.max(1, Math.min(79, Math.floor(((d.device.gatt.mtu || 23) - 3 - 4) / 3)));
-  const per = Math.min(room, liveMultiN());                    // documenté : une LED par paquet ; plus = à tester
   const gap = whole && per > 1 ? 0 : +$('liveGap').value;
   for (let i = 0; i < todo.length; i += per) {
     const part = todo.slice(i, i + per);
@@ -2605,7 +2607,7 @@ if (navigator.bluetooth) autoReconnect();
 window.__androidPermissionsChanged = () => { autoReconnect(); listSources(false); };
 if (IS_ANDROID) document.querySelectorAll('.pc-only').forEach(e => e.remove());
 $('logoLapin').src = $('favicon').href;   // le lapin Lampes en en-tête
-log('Lampes — version 66' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
+log('Lampes — version 67' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
 </script>
 </body>
 </html>
