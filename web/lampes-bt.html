@@ -70,7 +70,7 @@
 </head>
 <body>
 <main>
-  <h1><img id="logoLapin" alt="" style="width:34px; height:34px; vertical-align:-8px; border-radius:8px; margin-right:6px">Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 64</span></h1>
+  <h1><img id="logoLapin" alt="" style="width:34px; height:34px; vertical-align:-8px; border-radius:8px; margin-right:6px">Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 65</span></h1>
   <p class="sub">Sticks, rideau et autres lampes LED Bluetooth, pilotés ensemble ou par groupe.</p>
 
   <div id="nobt" class="card warn hidden">
@@ -764,7 +764,7 @@ async function writeRetry(ch, data, mode) {
 function send(d, bytes, quiet) {
   if (!d.char || !d.device.gatt.connected) return Promise.resolve();
   const data = d.proto && d.proto.govee ? goveePacket(bytes) : new Uint8Array(bytes);
-  d.pending = (d.pending || 0) + 1;
+  d.pending = (d.pending || 0) + 1; d.lastSend = performance.now();
   d.queue = (d.queue || Promise.resolve()).then(async () => {
     try {
       await writeRetry(d.char, data);
@@ -875,8 +875,12 @@ async function openGatt(d, quiet) {
   d.connecting = true;
   try {
     if (!quiet) log(`Connexion à ${d.device.name || d.device.id}…`);
-    d.server = await d.device.gatt.connect();
-    const uuids = (await d.server.getPrimaryServices()).map(s => s.uuid);
+    // délai max : une connexion qui ne répond pas est abandonnée puis relancée (au lieu de rester bloquée)
+    const limit = (pr, ms, what) => Promise.race([pr, new Promise((_, rej) => setTimeout(() => rej(new Error(what + ' : pas de réponse en ' + ms / 1000 + ' s')), ms))]);
+    try {
+      d.server = await limit(d.device.gatt.connect(), 15000, 'connexion');
+      var uuids = (await limit(d.server.getPrimaryServices(), 10000, 'services')).map(s => s.uuid);
+    } catch (e) { try { d.device.gatt.disconnect(); } catch (_) {} throw e; }
     log('Services : ' + (uuids.map(shortUuid).join(', ') || 'aucun visible'));
     const saved = store.get('proto_' + d.device.id);
     const isMelk = /^melk/i.test(d.device.name || '');
@@ -918,6 +922,24 @@ async function useProtocol(d, p) {
   }
   if (p.keepAlive) d.keepAliveTimer = setInterval(() => send(d, p.keepAlive, true), 2000);
 }
+// Veille : une lampe silencieuse depuis 20 s reçoit une petite trame sans effet visible ; si elle ne passe plus,
+// on coupe proprement et la reconnexion automatique la reprend (au lieu d'une lampe « figée »)
+setInterval(() => devices.forEach(async d => {
+  if (!d.char || !d.proto || !d.device.gatt.connected || d.connecting || d.pending || d.watching) return;
+  if (performance.now() - (d.lastSend || 0) < 20000) return;
+  const frame = d.proto.id === 'fairy' ? fairy([0xaa, 0x01, 0x00]) : d.proto.bright ? d.proto.bright(state.bright) : null;
+  if (!frame) return;
+  d.watching = true; d.lastSend = performance.now(); d.watchQuiet = d.proto.id === 'fairy';
+  try {
+    await Promise.race([writeRetry(d.char, new Uint8Array(frame), d.char.properties.write ? 'resp' : 'noresp'),
+                        new Promise((_, rej) => setTimeout(() => rej(new Error('pas de réponse')), 6000))]);
+  } catch (e) {
+    log(`⚠ ${d.device.name} ne répond plus (${e.message}) → reconnexion`);
+    try { d.device.gatt.disconnect(); } catch (_) {}
+    if (!d.manual && !d.removed) scheduleReconnect(d);
+  }
+  d.watching = false;
+}), 10000);
 function stopKeepAlive(d){ if (d.keepAliveTimer) clearInterval(d.keepAliveTimer); d.keepAliveTimer = null; }
 const shortUuid = s => { const m = s.match(/^0000([0-9a-f]{4})-0000-1000-8000-00805f9b34fb$/); return m ? m[1] : s; };
 
@@ -1778,7 +1800,8 @@ async function listen(d) {
     await ch.startNotifications();
     ch.addEventListener('characteristicvaluechanged', ev => {
       const b = new Uint8Array(ev.target.value.buffer);
-      if (b[1] !== 0xd1 || (d.d1acks = (d.d1acks || 0) + 1) <= 3)             // pas une ligne par LED
+      if (b[1] === 0x01 && d.watchQuiet) { d.watchQuiet = false; }            // réponse à la veille : pas dans le journal
+      else if (b[1] !== 0xd1 || (d.d1acks = (d.d1acks || 0) + 1) <= 3)        // pas une ligne par LED
         log(`← rideau : ${hex(b.slice(0, 12))}${b.length > 12 ? ' …' : ''}${b[1] === 0xd1 && d.d1acks === 3 ? '  (réponses suivantes masquées)' : ''}`);
       if (d.ackWait && b[0] === 0xaa && b[1] === d.ackWait.cmd) { const w = d.ackWait; d.ackWait = null; w.res(true); }
       if (b[0] === 0xaa && b[1] === 0x01 && b.length >= 9) {                 // état du rideau
@@ -2571,7 +2594,7 @@ if (navigator.bluetooth) autoReconnect();
 window.__androidPermissionsChanged = () => { autoReconnect(); listSources(false); };
 if (IS_ANDROID) document.querySelectorAll('.pc-only').forEach(e => e.remove());
 $('logoLapin').src = $('favicon').href;   // le lapin Lampes en en-tête
-log('Lampes — version 64' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
+log('Lampes — version 65' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
 </script>
 </body>
 </html>
