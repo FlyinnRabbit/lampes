@@ -70,7 +70,7 @@
 </head>
 <body>
 <main>
-  <h1><img id="logoLapin" alt="" style="width:34px; height:34px; vertical-align:-8px; border-radius:8px; margin-right:6px">Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 63</span></h1>
+  <h1><img id="logoLapin" alt="" style="width:34px; height:34px; vertical-align:-8px; border-radius:8px; margin-right:6px">Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 64</span></h1>
   <p class="sub">Sticks, rideau et autres lampes LED Bluetooth, pilotés ensemble ou par groupe.</p>
 
   <div id="nobt" class="card warn hidden">
@@ -1664,6 +1664,7 @@ $('mCurtain').addEventListener('change', () => renderTargets());
 $('mSpecStyle').addEventListener('change', () => devices.forEach(d => { if (d.live) { d.liveH = d.livePk = null; d.drops = []; } }));
 ['mSrc', 'mMode', 'mSens', 'mCurtain', 'mSpecStyle'].forEach(id => $(id).addEventListener('change', () => {
   mSave(); if (id === 'mSrc' && (music.stream || music.phone)) { musicStop(); log('Source changée : clique sur Démarrer.'); }
+  if (id === 'mSrc' && $('mSrc').value === '__ask') listSources(true);   // choisir « Autoriser… » ouvre tout de suite la demande
 }));
 {
   const st = store.get('music', {});
@@ -1672,7 +1673,11 @@ $('mSpecStyle').addEventListener('change', () => devices.forEach(d => { if (d.li
   if (st.curtain !== undefined) { $('mCurtain').value = st.curtain; if ($('mCurtain').selectedIndex < 0) $('mCurtain').value = '-1'; }
   if (st.specStyle) $('mSpecStyle').value = st.specStyle;
   if (st.delay) { $('mDelay').value = st.delay; $('mDelayVal').textContent = st.delay + ' ms'; }
-  if (navigator.mediaDevices) listSources(false);
+  if (navigator.mediaDevices) {
+    // accès au son déjà accordé : on relit la liste avec les noms (Voicemeeter…) sans rien demander
+    const q = navigator.permissions && navigator.permissions.query ? navigator.permissions.query({ name: 'microphone' }).catch(() => null) : Promise.resolve(null);
+    q.then(st => listSources(!IS_ANDROID && st && st.state === 'granted'));
+  }
 }
 
 /* ---------- Dessin sur le rideau (app Android : paquets d'image de 241 octets) ----------
@@ -2566,7 +2571,7 @@ if (navigator.bluetooth) autoReconnect();
 window.__androidPermissionsChanged = () => { autoReconnect(); listSources(false); };
 if (IS_ANDROID) document.querySelectorAll('.pc-only').forEach(e => e.remove());
 $('logoLapin').src = $('favicon').href;   // le lapin Lampes en en-tête
-log('Lampes — version 63' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
+log('Lampes — version 64' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
 </script>
 </body>
 </html>
