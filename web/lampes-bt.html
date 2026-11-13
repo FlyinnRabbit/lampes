@@ -69,7 +69,7 @@
 </head>
 <body>
 <main>
-  <h1>💡 Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 60</span></h1>
+  <h1>💡 Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 61</span></h1>
   <p class="sub">Sticks, rideau et autres lampes LED Bluetooth, pilotés ensemble ou par groupe.</p>
 
   <div id="nobt" class="card warn hidden">
@@ -1423,6 +1423,13 @@ async function musicStart() {
   if (!onlyCurtains && !await musicEngine()) return;
   const p0 = clock.p;
   nativeSel = null;
+  // seules les lampes de l'onglet choisi suivent la musique : les autres la quittent (le rideau reprend sa couleur)
+  devices.forEach(d => {
+    if (t.includes(d)) return;
+    if (d.anim && d.anim.id === 'music') d.anim = null;
+    if (d.live && !d.liveVisual) { d.live = null; d.liveReady = null; if (ready(d)) send(d, colorFrame(d, state.r, state.g, state.b)); }
+  });
+  if (liveTimer && !devices.some(d => d.live)) { clearInterval(liveTimer); liveTimer = null; }
   const curtains = t.filter(d => d.proto.id === 'fairy');
   const others = cm ? t.filter(d => d.proto.id !== 'fairy') : t;
   if (cm > 0 && curtains.length) {
@@ -2554,7 +2561,7 @@ renderTargets();
 if (navigator.bluetooth) autoReconnect();
 window.__androidPermissionsChanged = () => { autoReconnect(); listSources(false); };
 if (IS_ANDROID) document.querySelectorAll('.pc-only').forEach(e => e.remove());
-log('Lampes — version 60' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
+log('Lampes — version 61' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
 </script>
 </body>
 </html>
