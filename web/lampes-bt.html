@@ -70,7 +70,7 @@
 </head>
 <body>
 <main>
-  <h1><img id="logoLapin" alt="" style="width:34px; height:34px; vertical-align:-8px; border-radius:8px; margin-right:6px">Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 68</span></h1>
+  <h1><img id="logoLapin" alt="" style="width:34px; height:34px; vertical-align:-8px; border-radius:8px; margin-right:6px">Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 69</span></h1>
   <p class="sub">Sticks, rideau et autres lampes LED Bluetooth, pilotés ensemble ou par groupe.</p>
 
   <div id="nobt" class="card warn hidden">
@@ -122,6 +122,30 @@
       <input type="range" id="bright" min="1" max="100" value="100">
       <span id="brightVal" class="muted" style="width:40px">100%</span>
     </div>
+  </div>
+
+  <div class="card" id="timeCard">
+    <h2>⏰ Minuteur et réveil</h2>
+    <div style="font-weight:600; margin-bottom:6px">🌙 S'endormir</div>
+    <p class="muted" style="margin:0 0 8px">Les lampes de l'onglet sélectionné baissent doucement pendant les 10 dernières minutes, puis s'éteignent.</p>
+    <div class="row" style="margin-top:0">
+      <button data-sleep="15">15 min</button><button data-sleep="30">30 min</button>
+      <button data-sleep="60">1 h</button><button data-sleep="90">1 h 30</button>
+      <button id="sleepCancel">Annuler</button>
+    </div>
+    <div class="muted" id="sleepStatus"></div>
+    <div style="font-weight:600; margin:14px 0 6px; padding-top:12px; border-top:1px solid var(--line)">🌅 Réveil lumineux</div>
+    <p class="muted" style="margin:0 0 8px">Toutes les lampes s'allument comme un lever de soleil : rouge, orange puis blanc chaud, de plus en plus fort jusqu'à l'heure choisie. L'app doit rester ouverte (sur le téléphone, elle continue en arrière-plan).</p>
+    <div class="row" style="margin-top:0">
+      <label class="lbl">Heure</label>
+      <input type="time" id="alarmTime" value="07:30" style="font-size:16px; padding:6px 10px; border-radius:10px; background:var(--card2,#1d2029); color:inherit; border:1px solid var(--line)">
+      <select id="alarmDur"><option value="10">sur 10 min</option><option value="20" selected>sur 20 min</option><option value="30">sur 30 min</option></select>
+    </div>
+    <div class="row">
+      <select id="alarmDays"><option value="all">tous les jours</option><option value="week">du lundi au vendredi</option><option value="once">une seule fois</option></select>
+      <button id="alarmOn" class="primary">Activer</button><button id="alarmOff">Désactiver</button>
+    </div>
+    <div class="muted" id="alarmStatus"></div>
   </div>
 
   <div class="card hidden" id="diyCard">
@@ -696,6 +720,7 @@ const PROTOCOLS = [
       out.push(['fwmix', 'Bouquet varié', FA, '🎆 Bouquet varié'], ['fwpeony', 'Pivoines', FA, '🌸 Pivoines'],
                ['fwring', 'Anneaux', FA, '⭕ Anneaux'], ['fwwillow', 'Saule doré', FA, '🌾 Saule doré'],
                ['fwcrackle', 'Crépitants', FA, '✨ Crépitants'], ['fwmulti', 'Multicolores', FA, '🌈 Multicolores']);
+      out.push(['rtclock', 'Horloge', '🕒 Horloge', '🕒 Heure et minutes']);
       const RT = '🎮 Rétro';
       out.push(['rtmatrix', 'Pluie Matrix', RT, '🟩 Pluie Matrix'], ['rtsnake', 'Serpent', RT, '🐍 Serpent'],
                ['rtinv', 'Envahisseurs', RT, '👾 Envahisseurs'], ['rtblocks', 'Blocs qui tombent', RT, '🧱 Blocs qui tombent']);
@@ -1329,9 +1354,9 @@ function sendNative() {
   if (!nativeSel) return;
   const [pid, mv] = nativeSel.split(':');
   const FW = { fwmix: 'mix', fwpeony: 'peony', fwring: 'ring', fwwillow: 'willow', fwcrackle: 'crackle', fwmulti: 'multi',
-               rtmatrix: 'matrix', rtsnake: 'snake', rtinv: 'inv', rtblocks: 'blocks' };
+               rtmatrix: 'matrix', rtsnake: 'snake', rtinv: 'inv', rtblocks: 'blocks', rtclock: 'clock' };
   if (pid === 'fairy' && FW[mv]) {                // feux d'artifice animés : vitesse = cadence du spectacle
-    $('speed').closest('.row').classList.remove('hidden'); $('speedStill').classList.add('hidden');
+    $('speed').closest('.row').classList.toggle('hidden', mv === 'rtclock'); $('speedStill').classList.add('hidden');
     const curt = targets().filter(d => d.proto.id === 'fairy' && ready(d));
     curt.forEach(d => { d.anim = null; d.nm = null; d.fx = null; if (d.diy) diyStop(d);
       if (d.liveVisual !== 'fw' || d.fwStyle !== FW[mv]) d.fw = null;
@@ -1605,14 +1630,14 @@ function ambiGrab() {
     const f = AndroidScreen.frame(); if (!f) return null;
     const [w, h, b64] = f.split(','), bin = atob(b64), px = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) px[i] = bin.charCodeAt(i);
-    return { px, n: +w * +h };
+    return { px, n: +w * +h, w: +w, h: +h };
   }
   const v = ambi.video; if (!v || v.readyState < 2) return null;
   const cv = ambi.cv || (ambi.cv = document.createElement('canvas')); cv.width = 32; cv.height = 18;
   const cx = cv.getContext('2d', { willReadFrequently: true }); cx.drawImage(v, 0, 0, 32, 18);
   const d = cx.getImageData(0, 0, 32, 18).data, px = new Uint8Array(32 * 18 * 3);
   for (let i = 0, j = 0; i < d.length; i += 4) { px[j++] = d[i]; px[j++] = d[i + 1]; px[j++] = d[i + 2]; }
-  return { px, n: 32 * 18 };
+  return { px, n: 32 * 18, w: 32, h: 18 };
 }
 function ambiTick() {
   const g = ambiGrab();
@@ -1678,6 +1703,105 @@ function ambiStop(why) {
   if (was) log('■ Ambilight arrêté' + (typeof why === 'string' ? ' (' + why + ')' : ''));
 }
 $('ambiStart').onclick = ambiStart;
+/* ---------- Minuteur d'extinction et réveil lumineux ---------- */
+function setBrightUI(b) { state.bright = b; $('bright').value = b; $('brightVal').textContent = b + '%'; }
+function brightOn(list, b) {                            // même logique que le curseur Luminosité, sur une liste de lampes
+  setBrightUI(b);
+  list.forEach(d => { if (!ready(d) || d.live || d.diy || d.anim) return; const p = d.proto;
+    if (p.effectFrames && d.fx) p.effectFrames(d.fx, +$('speed').value, b).forEach(f => send(d, f, true));
+    else if (p.bright) send(d, p.bright(b), true);
+    else if (d.whiteMode) send(d, p.white(clamp(2.55 * b, 1, 255)), true);
+    else send(d, colorFrame(d, state.r, state.g, state.b), true); });
+}
+const sleepT = { end: 0, list: [], b0: 100, timer: null };
+function sleepTick() {
+  const left = sleepT.end - Date.now();
+  if (left <= 0) {
+    sleepT.list.forEach(d => { if (!ready(d)) return; d.anim = null; d.nm = null; d.live = null; d.liveVisual = null; if (d.diy) diyStop(d); send(d, d.proto.power(false)); });
+    if (ambi.on) ambiStop('minuteur');
+    if (music.timer || devices.some(d => d.anim && d.anim.id === 'music')) musicStop();
+    setBrightUI(sleepT.b0); markPlaying();
+    log('🌙 Minuteur : lampes éteintes. Bonne nuit !');
+    return sleepCancel(true);
+  }
+  const fade = Math.min(10 * 60000, sleepT.total);
+  if (left < fade) brightOn(sleepT.list, Math.max(1, Math.round(sleepT.b0 * left / fade)));
+  $('sleepStatus').textContent = `🌙 Extinction dans ${Math.ceil(left / 60000)} min` + (left < fade ? ' — les lampes baissent' : '');
+}
+function sleepCancel(done) {
+  if (sleepT.timer) clearInterval(sleepT.timer);
+  if (sleepT.end && !done) { brightOn(sleepT.list, sleepT.b0); log('🌙 Minuteur annulé'); }
+  Object.assign(sleepT, { end: 0, timer: null, list: [] });
+  $('sleepStatus').textContent = ''; document.querySelectorAll('[data-sleep]').forEach(b => b.classList.remove('sel'));
+}
+document.querySelectorAll('[data-sleep]').forEach(b => b.onclick = () => {
+  const list = targets(); if (!list.length) return log('Aucune lampe prête dans cet onglet.');
+  sleepCancel(true);
+  const min = +b.dataset.sleep;
+  Object.assign(sleepT, { end: Date.now() + min * 60000, total: min * 60000, list, b0: state.bright });
+  sleepT.timer = setInterval(sleepTick, 15000); sleepTick();
+  b.classList.add('sel');
+  log(`🌙 Minuteur : extinction dans ${min} min (${list.length} lampe${list.length > 1 ? 's' : ''})`);
+});
+$('sleepCancel').onclick = () => sleepCancel();
+
+const SUN = [[255, 20, 0], [255, 70, 0], [255, 120, 10], [255, 170, 70], [255, 200, 130]];   // lever de soleil
+function sunColor(p) {
+  const x = p * (SUN.length - 1), i = Math.min(SUN.length - 2, Math.floor(x)), f = x - i;
+  const k = 0.06 + 0.94 * p;                                                    // de plus en plus fort
+  return SUN[i].map((v, j) => Math.round((v + (SUN[i + 1][j] - v) * f) * k));
+}
+let alarmRun = null;
+function alarmCfg() { return store.get('alarm', null); }
+function alarmNext(cfg, from = new Date()) {         // prochaine heure de réveil
+  const [hh, mm] = cfg.time.split(':').map(Number);
+  for (let k = 0; k < 8; k++) {
+    const t = new Date(from); t.setDate(t.getDate() + k); t.setHours(hh, mm, 0, 0);
+    if (cfg.days === 'week' && (t.getDay() === 0 || t.getDay() === 6)) continue;
+    if (t.getTime() + 5 * 60000 > from.getTime()) return t;
+  }
+  return null;
+}
+function alarmShow() {
+  const cfg = alarmCfg();
+  if (!cfg) { $('alarmStatus').textContent = 'Réveil désactivé.'; $('alarmOn').classList.remove('sel'); return; }
+  $('alarmTime').value = cfg.time; $('alarmDur').value = cfg.dur; $('alarmDays').value = cfg.days; $('alarmOn').classList.add('sel');
+  const t = alarmNext(cfg); if (!t) return;
+  const left = t - Date.now(), h = Math.floor(left / 3600000), m = Math.floor(left % 3600000 / 60000);
+  $('alarmStatus').textContent = alarmRun ? '🌅 Lever de soleil en cours…'
+    : `🌅 Réveil ${t.toDateString() === new Date().toDateString() ? "aujourd'hui" : 'demain'} à ${cfg.time} (dans ${h} h ${String(m).padStart(2, '0')})` + (cfg.days === 'once' ? ', une seule fois' : '');
+}
+function alarmTick() {
+  const cfg = alarmCfg(); alarmShow(); if (!cfg) return;
+  const t = alarmNext(cfg), now = Date.now(); if (!t) return;
+  const startAt = t.getTime() - cfg.dur * 60000;
+  if (now < startAt || now > t.getTime() + 5 * 60000) { if (alarmRun && now > t.getTime() + 5 * 60000) alarmRun = null; return; }
+  if (cfg.done === t.getTime()) return;
+  const list = devices.filter(ready);
+  if (!alarmRun) {
+    alarmRun = t.getTime();
+    if (ambi.on) ambiStop('réveil'); if (music.timer) musicStop();
+    list.forEach(d => { d.anim = null; d.nm = null; d.fx = null; d.whiteMode = false; if (d.diy) diyStop(d);
+      if (d.live || d.liveVisual) { d.live = null; d.liveReady = null; d.liveVisual = null; }
+      send(d, d.proto.power(true), true); if (d.proto.bright) send(d, d.proto.bright(100), true); });
+    setBrightUI(100); markPlaying();
+    log(`🌅 Réveil : lever de soleil jusqu'à ${cfg.time}`);
+  }
+  const p = Math.min(1, (now - startAt) / (cfg.dur * 60000)), c = sunColor(p);
+  list.forEach(d => { if (!d.anim && !d.live && !d.diy) send(d, colorFrame(d, c[0], c[1], c[2]), true); });
+  $('alarmStatus').textContent = `🌅 Lever de soleil en cours : ${Math.round(p * 100)} %`;
+  if (p >= 1) {
+    [state.r, state.g, state.b] = SUN[SUN.length - 1]; $('preview').style.background = `rgb(${SUN[SUN.length - 1].join(',')})`;
+    cfg.done = t.getTime(); if (cfg.days === 'once') store.set('alarm', null); else store.set('alarm', cfg);
+    alarmRun = null; log('🌅 Réveil : bonjour !'); alarmShow();
+  }
+}
+$('alarmOn').onclick = () => {
+  store.set('alarm', { time: $('alarmTime').value || '07:30', dur: +$('alarmDur').value, days: $('alarmDays').value });
+  alarmShow(); log('🌅 Réveil activé : ' + $('alarmStatus').textContent.replace('🌅 ', ''));
+};
+$('alarmOff').onclick = () => { store.set('alarm', null); alarmRun = null; alarmShow(); log('🌅 Réveil désactivé'); };
+setInterval(alarmTick, 20000); setTimeout(alarmTick, 3000); alarmShow();
 $('ambiStop').onclick = () => ambiStop();
 $('mStop').onclick = () => musicStop(true);
 $('mRefresh').onclick = () => listSources(true);
@@ -2268,6 +2392,23 @@ const RT = {
     },
   },
 };
+// Horloge : heures en blanc en haut, minutes dans ta couleur en bas, un point avance avec les secondes
+const DIGITS = ['01110100011001110101110011000101110', '00100011000010000100001000010001110', '01110100010000100010001000100011111',
+  '11111000100010000010000011000101110', '00010001100101010010111110001000010', '11111100001111000001000011000101110',
+  '00110010001000011110100011000101110', '11111000010001000100010000100001000', '01110100011000101110100011000101110',
+  '01110100011000101111000010001001100'];
+RT.clock = {
+  init: () => ({}),
+  step() {},
+  draw(st, put) {
+    const t = new Date(), hh = String(t.getHours()).padStart(2, '0'), mm = String(t.getMinutes()).padStart(2, '0');
+    const [h, sat] = rgbToHsv(state.r, state.g, state.b), mc = sat < 0.2 ? WHITE : hueByte(Math.round(h * 360));
+    const digit = (ch, r0, c0, v) => { const g = DIGITS[+ch]; for (let k = 0; k < 35; k++) if (g[k] === '1') put(r0 + Math.floor(k / 5), c0 + k % 5, v); };
+    digit(hh[0], 1, 4, WHITE); digit(hh[1], 1, 11, WHITE);
+    digit(mm[0], 10, 4, mc); digit(mm[1], 10, 11, mc);
+    put(19, Math.floor(t.getSeconds() / 3), mc);
+  },
+};
 function rtDraw(style, st) {
   const img = new Array(N * N).fill(OFF);
   RT[style].draw(st, (y, x, v) => { y = Math.round(y); x = Math.round(x); if (y >= 0 && y < N && x >= 0 && x < N) img[y * N + x] = v; });
@@ -2608,7 +2749,7 @@ if (navigator.bluetooth) autoReconnect();
 window.__androidPermissionsChanged = () => { autoReconnect(); listSources(false); };
 if (IS_ANDROID) document.querySelectorAll('.pc-only').forEach(e => e.remove());
 $('logoLapin').src = $('favicon').href;   // le lapin Lampes en en-tête
-log('Lampes — version 68' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
+log('Lampes — version 69' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
 </script>
 </body>
 </html>
