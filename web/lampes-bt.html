@@ -69,7 +69,7 @@
 </head>
 <body>
 <main>
-  <h1>💡 Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 57</span></h1>
+  <h1>💡 Lampes Bluetooth <span class="muted" style="font-size:13px; font-weight:400">version 58</span></h1>
   <p class="sub">Sticks, rideau et autres lampes LED Bluetooth, pilotés ensemble ou par groupe.</p>
 
   <div id="nobt" class="card warn hidden">
@@ -1029,11 +1029,15 @@ function throttle(fn, ms=80) {
   return () => { if (t) { pending=true; return; } fn(); t=setTimeout(()=>{ t=null; if(pending){pending=false; fn();} }, ms); };
 }
 const nmRefresh = throttle(() => each(d => { if (d.nm) nmSend(d.nm.mode, [d], d.nm.sens); }), 400);
+// Choisir une couleur (roue ou pastille) remplace ce qui tourne : animation, Serpent, feux, disque, image…
+// Seule la musique continue (elle utilise la couleur choisie).
 const applyColor = throttle(() => each(d => {
-  if (d.live && d.liveVisual === 'image') { d.live = null; d.liveVisual = null; d.staticImg = null; }   // image fixe (drapeau…) : la couleur la remplace
-  if (d.diy || d.live) return;
+  const musicLive = d.live && !d.liveVisual;                            // spectre du mode musique
   if (d.nm) { if (!$('nmAuto').checked) nmRefresh(); return; }
-  if (d.anim) return;   // pendant une animation, elle reprend la couleur choisie au pas suivant
+  if ((d.anim && d.anim.id === 'music') || musicLive) return;
+  if (d.diy) diyStop(d);
+  if (d.live || d.liveVisual) { d.live = null; d.liveReady = null; d.liveVisual = null; d.staticImg = null; d.fw = null; }
+  d.anim = null;
   d.whiteMode = false; d.fx = null;
   send(d, colorFrame(d, state.r, state.g, state.b));
 }));
@@ -1096,7 +1100,7 @@ function setColor(rgb) {
   $('preview').style.background = `rgb(${rgb.join(',')})`;
   const [h, s] = rgbToHsv(...rgb);                 // place le repère sur la roue
   wheelPos = [W/2 + Math.cos(h * 2 * Math.PI) * s * R, W/2 + Math.sin(h * 2 * Math.PI) * s * R];
-  drawWheel(); applyColor();
+  drawWheel(); applyColor(); setTimeout(markPlaying, 150);
 }
 function pickAt(e) {
   const rect = wheel.getBoundingClientRect(), k = W / rect.width;
@@ -2540,7 +2544,7 @@ renderTargets();
 if (navigator.bluetooth) autoReconnect();
 window.__androidPermissionsChanged = () => { autoReconnect(); listSources(false); };
 if (IS_ANDROID) document.querySelectorAll('.pc-only').forEach(e => e.remove());
-log('Lampes — version 57' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
+log('Lampes — version 58' + (IS_ANDROID ? ' (Android)' : '') + '. Prêt.');
 </script>
 </body>
 </html>
