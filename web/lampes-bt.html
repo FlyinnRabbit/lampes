@@ -70,7 +70,7 @@
 </head>
 <body>
 <main>
-  <h1><img id="logoLapin" alt="" style="width:34px; height:34px; vertical-align:-8px; border-radius:8px; margin-right:6px">Bluetooth Lamps <span class="muted" style="font-size:13px; font-weight:400">version 71</span></h1>
+  <h1><img id="logoLapin" alt="" style="width:34px; height:34px; vertical-align:-8px; border-radius:8px; margin-right:6px">Bluetooth Lamps <span class="muted" style="font-size:13px; font-weight:400">version 72</span></h1>
   <p class="sub">Sticks, curtain and other Bluetooth LED lamps, controlled together or by group.</p>
 
   <div id="nobt" class="card warn hidden">
@@ -595,6 +595,69 @@ function melkEffects(groups) {
     return codes.map((v, k) => [v, codes.length > 1 ? `${name} ${k + 1}` : name, cat]);
   });
 }
+/* ---------- Drapeaux du monde (rideau 20×20) ----------
+   lettres : R rouge, O orange, Y jaune, G vert, C bleu clair, B bleu, W blanc, K éteint (noir) */
+const WORLD_FLAGS = [
+  ['nl', 'Netherlands', '🌍 Europe', 'h3', 'RWB'], ['lu', 'Luxembourg', '🌍 Europe', 'h3', 'RWC'], ['ru', 'Russia', '🌍 Europe', 'h3', 'WBR'],
+  ['at', 'Austria', '🌍 Europe', 'h3', 'RWR'], ['hu', 'Hungary', '🌍 Europe', 'h3', 'RWG'], ['bg', 'Bulgaria', '🌍 Europe', 'h3', 'WGR'],
+  ['lt', 'Lithuania', '🌍 Europe', 'h3', 'YGR'], ['ee', 'Estonia', '🌍 Europe', 'h3', 'BKW'], ['am', 'Armenia', '🌍 Europe', 'h3', 'RBO'],
+  ['ie', 'Ireland', '🌍 Europe', 'v3', 'GWO'], ['ro', 'Romania', '🌍 Europe', 'v3', 'BYR'], ['pl', 'Poland', '🌍 Europe', 'h2', 'WR'],
+  ['ua', 'Ukraine', '🌍 Europe', 'h2', 'BY'], ['mc', 'Monaco', '🌍 Europe', 'h2', 'RW'], ['mt', 'Malta', '🌍 Europe', 'v2', 'WR'],
+  ['se', 'Sweden', '🌍 Europe', 'cross', 'BY'], ['dk', 'Denmark', '🌍 Europe', 'cross', 'RW'], ['fi', 'Finland', '🌍 Europe', 'cross', 'WB'],
+  ['no', 'Norway', '🌍 Europe', 'cross3', 'RWB'], ['is', 'Iceland', '🌍 Europe', 'cross3', 'BWR'], ['ch', 'Switzerland', '🌍 Europe', 'swiss', 'RW'],
+  ['gr', 'Greece', '🌍 Europe', 'greece', 'BW'], ['tr', 'Turkey', '🌍 Europe', 'turkey', 'RW'],
+  ['ng', 'Nigeria', '🌍 Africa', 'v3', 'GWG'], ['ci', 'Ivory Coast', '🌍 Africa', 'v3', 'OWG'], ['gn', 'Guinea', '🌍 Africa', 'v3', 'RYG'],
+  ['ml', 'Mali', '🌍 Africa', 'v3', 'GYR'], ['td', 'Chad', '🌍 Africa', 'v3', 'BYR'], ['ga', 'Gabon', '🌍 Africa', 'h3', 'GYB'],
+  ['sl', 'Sierra Leone', '🌍 Africa', 'h3', 'GWB'],
+  ['mx', 'Mexico', '🌎 Americas', 'v3', 'GWR'], ['pe', 'Peru', '🌎 Americas', 'v3', 'RWR'], ['co', 'Colombia', '🌎 Americas', 'colombia', 'YBR'],
+  ['bo', 'Bolivia', '🌎 Americas', 'h3', 'RYG'], ['ar', 'Argentina', '🌎 Americas', 'argentina', 'CWY'], ['br', 'Brazil', '🌎 Americas', 'brazil', 'GYB'],
+  ['id', 'Indonesia', '🌏 Asia & Oceania', 'h2', 'RW'], ['bd', 'Bangladesh', '🌏 Asia & Oceania', 'disc', 'GR'], ['pw', 'Palau', '🌏 Asia & Oceania', 'disc', 'CY'],
+  ['ye', 'Yemen', '🌏 Asia & Oceania', 'h3', 'RWK'], ['th', 'Thailand', '🌏 Asia & Oceania', 'thai', 'RWB'], ['in', 'India', '🌏 Asia & Oceania', 'india', 'OWGB'],
+  ['vn', 'Vietnam', '🌏 Asia & Oceania', 'star', 'RY'], ['cn', 'China', '🌏 Asia & Oceania', 'china', 'RY'],
+];
+const flagEmoji = cc => [...cc.toUpperCase()].map(ch => String.fromCodePoint(0x1F1E6 + ch.charCodeAt(0) - 65)).join('');
+const STAR7 = ['...#...', '...#...', '#######', '.#####.', '..###..', '.##.##.', '##...##'];
+function worldFlagImg(cc) {
+  const f = WORLD_FLAGS.find(x => x[0] === cc), img = new Array(N * N).fill(OFF); if (!f) return img;
+  const H = { R: 0, O: 25, Y: 52, G: 120, C: 195, B: 225 };
+  const col = [...f[4]].map(ch => ch === 'W' ? WHITE : ch === 'K' ? OFF : hueByte(H[ch]));
+  const put = (r, k, v) => { if (r >= 0 && r < N && k >= 0 && k < N) img[r * N + k] = v; };
+  const star = (r0, k0, v) => STAR7.forEach((row, r) => [...row].forEach((ch, k) => { if (ch === '#') put(r0 + r, k0 + k, v); }));
+  for (let r = 0; r < N; r++) for (let k = 0; k < N; k++) {
+    let v = col[0];
+    switch (f[3]) {
+      case 'v3': v = k < 7 ? col[0] : k < 13 ? col[1] : col[2]; break;
+      case 'h3': v = r < 7 ? col[0] : r < 13 ? col[1] : col[2]; break;
+      case 'v2': v = k < 10 ? col[0] : col[1]; break;
+      case 'h2': v = r < 10 ? col[0] : col[1]; break;
+      case 'cross': case 'cross3': {
+        const inCross = (k >= 5 && k <= 8) || (r >= 8 && r <= 11), inner = (k >= 6 && k <= 7) || (r >= 9 && r <= 10);
+        v = f[3] === 'cross3' ? (inner ? col[2] : inCross ? col[1] : col[0]) : (inCross ? col[1] : col[0]); break; }
+      case 'swiss': v = ((k >= 8 && k <= 11 && r >= 4 && r <= 15) || (r >= 8 && r <= 11 && k >= 4 && k <= 15)) ? col[1] : col[0]; break;
+      case 'greece': {
+        v = Math.floor(r / 2) % 2 ? col[1] : col[0];                       // bandes bleu / blanc
+        if (r < 10 && k < 10) v = (k === 4 || k === 5 || r === 4 || r === 5) ? col[1] : col[0];   // croix blanche dans le coin
+        break; }
+      case 'disc': v = (r - 9.5) ** 2 + (k - 9.5) ** 2 <= 30 ? col[1] : col[0]; break;
+      case 'colombia': v = r < 10 ? col[0] : r < 15 ? col[1] : col[2]; break;
+      case 'argentina': v = (r >= 7 && r < 13) ? ((r - 9.5) ** 2 + (k - 9.5) ** 2 <= 4 ? col[2] : col[1]) : col[0]; break;
+      case 'brazil': {
+        const dia = Math.abs(r - 9.5) / 8 + Math.abs(k - 9.5) / 9.5 <= 1;
+        v = (r - 9.5) ** 2 + (k - 9.5) ** 2 <= 14 ? col[2] : dia ? col[1] : col[0]; break; }
+      case 'thai': v = r < 3 || r >= 17 ? col[0] : r < 6 || r >= 14 ? col[1] : col[2]; break;
+      case 'india': v = r < 7 ? col[0] : r < 13 ? ((r - 9.5) ** 2 + (k - 9.5) ** 2 <= 4 ? col[3] : col[1]) : col[2]; break;
+      case 'star': case 'china': v = col[0]; break;
+      case 'turkey': {                                    // croissant blanc : grand disque moins un disque décalé
+        const big = (r - 9.5) ** 2 + (k - 7.5) ** 2 <= 30, cut = (r - 9.5) ** 2 + (k - 9) ** 2 <= 19;
+        v = big && !cut ? col[1] : col[0]; break; }
+    }
+    img[r * N + k] = v;
+  }
+  if (f[3] === 'star') star(6, 7, col[1]);
+  if (f[3] === 'turkey') [[8, 13], [9, 11], [9, 12], [9, 13], [9, 14], [9, 15], [10, 12], [10, 13], [10, 14], [11, 12], [11, 14]].forEach(([r, k]) => put(r, k, col[1]));
+  if (f[3] === 'china') { star(2, 2, col[1]); [[1, 11], [3, 13], [6, 13], [8, 11]].forEach(([r, k]) => put(r, k, col[1])); }
+  return img;
+}
 const PROTOCOLS = [
   {
     id: 'elk', name: 'ELK-BLEDOM / duoCo / Lotus Lantern',
@@ -740,6 +803,8 @@ const PROTOCOLS = [
         ['au', 'Australia', F, '🇦🇺 Australia'], [37, 'Germany', F], [38, 'Canada', F], ['es', 'Spain', F, '🇪🇸 Spain'],
         [40, 'England', F], ['it', 'Italy', F, '🇮🇹 Italy'], [42, 'Japan', F],
         ['be', 'Belgium on a white background', F, '🇧🇪 Belgium'], ['rasta', 'Rasta flag', F, '🟥🟨🟩 Rasta']);
+      // drapeaux du monde dessinés par l'app, rangés par région
+      WORLD_FLAGS.forEach(([cc, name, region]) => out.push(['wf_' + cc, name, region, flagEmoji(cc) + ' ' + name]));
       // feux d'artifice animés par l'app (fusées + explosions dessinées LED par LED)
       const FA = '🎆 Fireworks';
       out.push(['fwmix', 'Mixed bouquet', FA, '🎆 Mixed bouquet'], ['fwpeony', 'Peonies', FA, '🌸 Peonies'],
@@ -1469,6 +1534,7 @@ function sendNative() {
     markPlaying(); return;
   }
   const DRAWN = { be: 'beflag', rasta: 'rasta', us: 'us', fr: 'fr', au: 'au', es: 'es', it: 'it' };   // images dessinées par l'app
+  if (mv.startsWith('wf_')) DRAWN[mv] = mv;                       // drapeaux du monde
   if (pid === 'fairy' && DRAWN[mv]) {
     $('speed').closest('.row').classList.add('hidden'); $('speedStill').classList.remove('hidden');
     const curt = targets().filter(d => d.proto.id === 'fairy' && ready(d));
@@ -1962,6 +2028,7 @@ const cellAngle = (r, c) => (Math.atan2((c + .5) - N/2, -((r + .5) - N/2)) * 180
 const cellDist  = (r, c) => Math.hypot((c + .5) - N/2, (r + .5) - N/2);
 const onRing = (r, c, rad = 8.2) => Math.abs(cellDist(r, c) - rad) < 0.75;
 function model(kind, t = 0) {
+  if (typeof kind === 'string' && kind.startsWith('wf_')) return worldFlagImg(kind.slice(3));
   const img = new Array(N * N).fill(OFF), mine = rgbToByte(state.r, state.g, state.b);
   for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
     const i = r * N + c, a = cellAngle(r, c);
@@ -2863,7 +2930,7 @@ if (navigator.bluetooth) autoReconnect();
 window.__androidPermissionsChanged = () => { autoReconnect(); listSources(false); };
 if (IS_ANDROID) document.querySelectorAll('.pc-only').forEach(e => e.remove());
 $('logoLapin').src = $('favicon').href;   // le lapin Lampes en en-tête
-log('Lamps — version 71' + (IS_ANDROID ? ' (Android)' : '') + '. Ready.');
+log('Lamps — version 72' + (IS_ANDROID ? ' (Android)' : '') + '. Ready.');
 </script>
 </body>
 </html>
