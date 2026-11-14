@@ -383,16 +383,35 @@ async function write(bytes) {
     }
   }
 }
-async function openCurtain(device) {
+// délai max : une étape qui ne répond pas est abandonnée (au lieu de rester bloquée sur « Connecting… »)
+const limit = (pr, ms, what) => Promise.race([pr, new Promise((_, rej) => setTimeout(() => rej(new Error(what + ': no answer within ' + ms / 1000 + ' s')), ms))]);
+let retryTimer = null, connecting = false, wantConn = false;
+function scheduleRetry() {
+  if (retryTimer || !cur.device) return;
+  if (cur.device.watchAdvertisements) cur.device.watchAdvertisements().catch(() => {});
+  retryTimer = setInterval(() => {
+    if (cur.ready || !wantConn) { clearInterval(retryTimer); retryTimer = null; return; }
+    if (!connecting) openCurtain(cur.device, true);
+  }, 6000);
+}
+async function openCurtain(device, quiet) {
+  if (connecting) return; connecting = true; wantConn = true;
+  const fresh = cur.device !== device;
   cur.device = device; cur.ready = false;
-  $('connName').textContent = 'Connecting to ' + (device.name || 'curtain') + '…';
+  $('connName').textContent = 'Connecting to ' + (device.name || 'curtain') + '…'; $('v1Conn').textContent = '⏳ Connecting to the curtain…';
+  if (!quiet) log('Connecting to ' + (device.name || device.id) + '…');
   try {
-    const server = await device.gatt.connect();
-    const svc = await server.getPrimaryService(SVC);
-    cur.ch = await svc.getCharacteristic(CHR);
-    device.addEventListener('gattserverdisconnected', () => {
+    let svc;
+    try {
+      const server = await limit(device.gatt.connect(), 15000, 'connection');
+      svc = await limit(server.getPrimaryService(SVC), 10000, 'services');
+      cur.ch = await limit(svc.getCharacteristic(CHR), 8000, 'characteristic');
+    } catch (e) { try { device.gatt.disconnect(); } catch (_) {} throw e; }
+    if (fresh) device.addEventListener('gattserverdisconnected', () => {
+      if (cur.device !== device) return;
       cur.ready = false; $('connDot').classList.remove('on'); document.querySelectorAll('[data-dot]').forEach(d => d.classList.remove('on')); $('v1Conn').textContent = '🔗 Reconnect the curtain'; $('connName').textContent = 'Disconnected — tap Reconnect';
-      $('btnRe').classList.remove('hidden'); log('Curtain disconnected');
+      $('btnRe').classList.remove('hidden'); log('Curtain disconnected — retrying every 6 s');
+      scheduleRetry();
     });
     // panel mode: the curtain then accepts single-LED pixels
     await write(fairy([0xaa, 0x02, 0x01, 0x01])); await sleep(100);
@@ -401,20 +420,30 @@ async function openCurtain(device) {
     sent.fill(-1); cur.ready = true;
     $('connDot').classList.add('on'); $('connName').textContent = '✓ ' + (device.name || 'Curtain');
     document.querySelectorAll('[data-dot]').forEach(d => d.classList.add('on')); $('v1Conn').textContent = '✓ ' + (device.name || 'Curtain');
-    $('btnRe').classList.add('hidden'); store.set('lastName', device.name || '');
+    $('btnRe').classList.add('hidden'); store.set('lastName', device.name || ''); store.set('lastId', device.id);
     log('Connected to ' + device.name); draw();
-  } catch (e) { $('connName').textContent = 'Connection failed: ' + e.message; log('Error: ' + e.message); $('btnRe').classList.remove('hidden'); }
+  } catch (e) {
+    $('connName').textContent = 'Connection failed: ' + e.message + ' — retrying…';
+    $('v1Conn').textContent = IS_ANDROID ? '⚠ Not connected — retrying… (tap to choose again)' : '⚠ Not connected — close Lamps, retrying… (click to choose again)';
+    if (!quiet) log('Error: ' + e.message + (IS_ANDROID ? '' : ' — is Lamps (or the phone) still connected to the curtain? Close it.'));
+    $('btnRe').classList.remove('hidden'); scheduleRetry();
+  }
+  connecting = false;
 }
 $('btnConnect').onclick = async () => {
   let device;
-  try { device = await navigator.bluetooth.requestDevice({ filters: [{ namePrefix: 'Hello Fairy' }, { services: [SVC] }], optionalServices: [SVC] }); }
-  catch (e) { return log('Cancelled: ' + e.message); }
+  if (!navigator.bluetooth) return log('⚠ Bluetooth is not available in this browser. Use Chrome or Edge.');
+  try { device = await navigator.bluetooth.requestDevice({ filters: [{ namePrefix: 'Hello Fairy' }, { namePrefix: 'Fairy' }, { services: [SVC] }], optionalServices: [SVC] }); }
+  catch (e) { return log('Cancelled: ' + e.message + (IS_ANDROID ? '' : ' — if the curtain is not in the list, close Lamps (a connected curtain stops showing up), then try again.')); }
+  if (cur.device && cur.device !== device) { wantConn = false; try { cur.device.gatt.disconnect(); } catch (_) {} }
   openCurtain(device);
 };
-$('btnRe').onclick = () => { if (cur.device) openCurtain(cur.device); };
-// PC : retrouve automatiquement le rideau déjà autorisé
+$('btnRe').onclick = () => { if (cur.device) openCurtain(cur.device); else $('btnConnect').click(); };
+// PC : retrouve automatiquement le rideau déjà autorisé (aussi celui autorisé dans Lamps)
 if (navigator.bluetooth && navigator.bluetooth.getDevices) navigator.bluetooth.getDevices().then(list => {
-  const d = list.find(x => (x.name || '').startsWith('Hello Fairy')); if (d) openCurtain(d);
+  const id = store.get('lastId', ''), d = list.find(x => x.id === id) || list.find(x => /fairy/i.test(x.name || ''));
+  log(list.length ? `Remembered devices: ${list.map(x => x.name || '?').join(', ')}` : 'No remembered curtain yet: click “Connect the curtain”.');
+  if (d) openCurtain(d);
 }).catch(() => {});
 
 /* ---------- envoi des pixels (seulement ceux qui changent, une LED par paquet) ---------- */
