@@ -48,6 +48,8 @@
   .biglogo { width:84px; height:84px; border-radius:20px; margin-bottom:10px; }
   .bigicon { font-size:72px; }
   .bigscore { font-size:72px; font-weight:800; color:#ffd54a; line-height:1; }
+  .seg { display:flex; gap:8px; margin-top:10px; justify-content:center; }
+  .seg button.on { background:var(--accent); color:#0b0d12; border-color:var(--accent); font-weight:600; }
   .playbig { margin-top:30px; width:100%; max-width:320px; height:90px; font-size:30px; border-radius:24px; }
   .view input[type=range] { width:100%; max-width:360px; }
   .ticks { display:flex; justify-content:space-between; width:100%; max-width:360px; }
@@ -89,9 +91,15 @@
       <div class="bigicon" data-gicon></div>
       <div class="muted">🏆 Best score</div>
       <div class="bigscore" id="selBest">0</div>
+      <div id="modeBox" class="hidden" style="margin-top:24px;text-align:center">
+        <div class="vtitle">Players</div>
+        <div class="seg"><button id="m1">🤖 vs Computer</button><button id="m2">👥 2 Players</button></div>
+      </div>
+      <div id="levelBox" style="width:100%;display:flex;flex-direction:column;align-items:center">
       <div class="vtitle" style="margin-top:28px">Difficulty: <span id="levelName">Normal</span></div>
       <input type="range" id="level" min="0" max="2" step="1" value="1">
       <div class="ticks"><span>Easy</span><span>Normal</span><span>Hard</span></div>
+      </div>
     </div>
     <footer><button data-back="1">← Return</button><button class="primary" data-go="3">Next →</button></footer>
   </section>
@@ -424,7 +432,7 @@ function draw() {
 const H = { red: hueByte(0), orange: hueByte(30), yellow: hueByte(55), green: hueByte(120), cyan: hueByte(185), blue: hueByte(225), purple: hueByte(285) };
 let game = 'snake', state = null, timer = null, paused = false, over = false;
 const best = () => store.get('best_' + game, 0);
-function setScore(s, s2) { $('score').textContent = s; $('stat2').textContent = s2; if (s > best()) store.set('best_' + game, s); $('best').textContent = best(); }
+function setScore(s, s2) { $('score').textContent = s; $('stat2').textContent = s2; if (!(typeof TWO === 'function' && TWO()) && s > best()) store.set('best_' + game, s); $('best').textContent = best(); }
 
 // --- Snake : la tête jaune, le corps vert, la pomme rouge ; les bords font le tour
 const Snake = {
@@ -508,6 +516,18 @@ const rnd = n => Math.floor(Math.random() * n);
 const pick = a => a[rnd(a.length)];
 // fin de manche (jeux de plateau) : on montre le résultat, puis manche suivante ou fin de partie
 function roundEnd(st, result) { st.phase = 'end'; st.result = result; st.wait = 6; }
+// mode 2 joueurs (Connect Four, Tic-Tac-Toe) : joueur 1 = 'you', joueur 2 = 'p2', on alterne qui commence
+let twoP = false;
+const TWO = () => twoP && G().ok;
+function boardInit(st) { st.score = 0; st.wins = 0; st.w = [0, 0, 0]; st.starter = 2; }
+function boardStart(st) { if (TWO()) { st.starter = 3 - st.starter; st.phase = st.starter === 1 ? 'you' : 'p2'; } else st.phase = 'you'; }
+function boardWho(st) { return st.phase === 'p2' ? 2 : st.phase === 'you' ? 1 : 0; }
+function boardNext(st, p) { if (st.phase === 'end') return; st.phase = TWO() ? (p === 1 ? 'p2' : 'you') : 'cpu'; }
+function boardResult(st, w) {                       // w = gagnant (1/2) ou 0 si égalité
+  if (TWO()) { if (w) st.w[w]++; roundEnd(st, w ? 'win' : 'draw'); return; }
+  if (w === 1) { st.wins++; st.score += 100; roundEnd(st, 'win'); } else roundEnd(st, w ? 'lose' : 'draw');
+}
+const boardStat = st => TWO() ? `${st.w[1]}–${st.w[2]}` : st.wins;
 
 // --- Light Cycles : ta moto (cyan) contre l'ordinateur (orange) ; chaque moto laisse un mur
 const Cycles = {
@@ -630,8 +650,9 @@ const Bricks = {
 const Connect4 = {
   name: 'Connect Four', icon: '🔴', stat: 'Wins', ok: true,
   help: '◀ ▶ choose a column, ● (or ▼) to drop your red disc. Line up 4 to win!',
-  init() { const st = { score: 0, wins: 0 }; Connect4.reset(st); return st; },
-  reset(st) { st.b = Array.from({ length: 6 }, () => new Array(7).fill(0)); st.col = 3; st.phase = 'you'; st.line = null; },
+  help2: '2 players: take turns. The cursor colour shows whose turn it is (red or yellow). Line up 4 to win!',
+  init() { const st = {}; boardInit(st); Connect4.reset(st); return st; },
+  reset(st) { st.b = Array.from({ length: 6 }, () => new Array(7).fill(0)); st.col = 3; st.line = null; boardStart(st); },
   speed() { return 350; },
   drop(b, c, p) { for (let r = 5; r >= 0; r--) if (!b[r][c]) { b[r][c] = p; return r; } return -1; },
   winner(b) {
@@ -657,14 +678,14 @@ const Connect4 = {
   },
   after(st) {
     const w = Connect4.winner(st.b);
-    if (w) { st.line = w.cells; if (w.p === 1) { st.wins++; st.score += 100; roundEnd(st, 'win'); } else roundEnd(st, 'lose'); return; }
-    if (st.b[0].every(v => v)) roundEnd(st, 'draw');
+    if (w) { st.line = w.cells; boardResult(st, w.p); return; }
+    if (st.b[0].every(v => v)) boardResult(st, 0);
   },
   key(st, k) {
-    if (st.phase !== 'you') return;
+    const p = boardWho(st); if (!p) return;
     if (k === 'left') st.col = Math.max(0, st.col - 1);
     if (k === 'right') st.col = Math.min(6, st.col + 1);
-    if ((k === 'drop' || k === 'down') && Connect4.drop(st.b, st.col, 1) >= 0) { Connect4.after(st); if (st.phase === 'you') st.phase = 'cpu'; }
+    if ((k === 'drop' || k === 'down') && Connect4.drop(st.b, st.col, p) >= 0) { Connect4.after(st); boardNext(st, p); }
   },
   step(st) {
     if (st.phase === 'cpu') { Connect4.cpuMove(st); Connect4.after(st); if (st.phase === 'cpu') st.phase = 'you'; return true; }
@@ -679,9 +700,9 @@ const Connect4 = {
       blk(3 + r * 3, c * 3, !p ? OFF : hl ? WHITE : p === 1 ? H.red : H.yellow);
       if (!p) img[(3 + r * 3) * N + c * 3] = hueByte(225);      // repère discret : un point bleu par case vide
     }));
-    if (st.phase === 'you') blk(0, st.col * 3, H.red);
+    if (boardWho(st)) blk(0, st.col * 3, boardWho(st) === 1 ? H.red : H.yellow);
     priority = [];
-    return st.wins;
+    return boardStat(st);
   },
 };
 
@@ -689,8 +710,9 @@ const Connect4 = {
 const TTT = {
   name: 'Tic-Tac-Toe', icon: '⭕', stat: 'Wins', ok: true,
   help: 'Arrows move the yellow cursor, ● (or ▼) to place your X. Get 3 in a row!',
-  init() { const st = { score: 0, wins: 0 }; TTT.reset(st); return st; },
-  reset(st) { st.b = new Array(9).fill(0); st.cur = 4; st.phase = 'you'; st.line = null; },
+  help2: '2 players: take turns. Cyan cursor = X, red cursor = O. Get 3 in a row!',
+  init() { const st = {}; boardInit(st); TTT.reset(st); return st; },
+  reset(st) { st.b = new Array(9).fill(0); st.cur = 4; st.line = null; boardStart(st); },
   speed() { return 380; },
   LINES: [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]],
   win(b) { for (const l of TTT.LINES) if (b[l[0]] && b[l[0]] === b[l[1]] && b[l[1]] === b[l[2]]) return { p: b[l[0]], l }; return null; },
@@ -711,15 +733,15 @@ const TTT = {
   },
   after(st) {
     const w = TTT.win(st.b);
-    if (w) { st.line = w.l; if (w.p === 1) { st.wins++; st.score += 100; roundEnd(st, 'win'); } else roundEnd(st, 'lose'); return; }
-    if (st.b.every(v => v)) roundEnd(st, 'draw');
+    if (w) { st.line = w.l; boardResult(st, w.p); return; }
+    if (st.b.every(v => v)) boardResult(st, 0);
   },
   key(st, k) {
-    if (st.phase !== 'you') return;
+    const p = boardWho(st); if (!p) return;
     const r = Math.floor(st.cur / 3), c = st.cur % 3;
     if (k === 'up' && r > 0) st.cur -= 3; if (k === 'down' && r < 2) st.cur += 3;
     if (k === 'left' && c > 0) st.cur--; if (k === 'right' && c < 2) st.cur++;
-    if (k === 'drop' && !st.b[st.cur]) { st.b[st.cur] = 1; TTT.after(st); if (st.phase === 'you') st.phase = 'cpu'; }
+    if (k === 'drop' && !st.b[st.cur]) { st.b[st.cur] = p; TTT.after(st); boardNext(st, p); }
   },
   step(st) {
     if (st.phase === 'cpu') { TTT.cpuMove(st); TTT.after(st); if (st.phase === 'cpu') st.phase = 'you'; return true; }
@@ -734,10 +756,10 @@ const TTT = {
       if (p === 1) for (let k = 0; k < 6; k++) { img[(r0 + k) * N + c0 + k] = hl ? WHITE : H.cyan; img[(r0 + k) * N + c0 + 5 - k] = hl ? WHITE : H.cyan; }
       if (p === 2) for (let a = 0; a < 6; a++) for (let b = 0; b < 6; b++) if ((a === 0 || a === 5 || b === 0 || b === 5) && !((a === 0 || a === 5) && (b === 0 || b === 5))) img[(r0 + a) * N + c0 + b] = hl ? WHITE : H.red;
     });
-    if (st.phase === 'you' && !st.b[st.cur]) { const r0 = Math.floor(st.cur / 3) * 7 + 2, c0 = (st.cur % 3) * 7 + 2;
-      for (let a = 0; a < 2; a++) for (let b = 0; b < 2; b++) img[(r0 + a) * N + c0 + b] = H.yellow; }
+    if (boardWho(st) && !st.b[st.cur]) { const r0 = Math.floor(st.cur / 3) * 7 + 2, c0 = (st.cur % 3) * 7 + 2;
+      for (let a = 0; a < 2; a++) for (let b = 0; b < 2; b++) img[(r0 + a) * N + c0 + b] = TWO() ? (boardWho(st) === 1 ? H.cyan : H.red) : H.yellow; }
     priority = [];
-    return st.wins;
+    return boardStat(st);
   },
 };
 
@@ -748,7 +770,7 @@ const GAMES = { snake: Snake, tetris: Tetris, cycles: Cycles, connect4: Connect4
 const G = () => GAMES[game];
 function render() {
   frame.fill(OFF);
-  if (state) { const s2 = G().render(state, frame); if (s2 !== undefined) setScore(state.score, s2); $('lab2').textContent = G().stat; }
+  if (state) { const s2 = G().render(state, frame); if (s2 !== undefined) setScore(state.score, s2); $('lab2').textContent = TWO() ? (game === 'ttt' ? 'X – O' : 'Red – Yellow') : G().stat; }
   draw();
 }
 function tick() {
@@ -765,7 +787,7 @@ function gameOver() {
   $('btnStart').classList.remove('hidden'); $('btnPause').classList.add('hidden');
 }
 function start() {
-  clearTimeout(timer); over = false; paused = false; state = G().init(); $('help').textContent = G().help;
+  clearTimeout(timer); over = false; paused = false; state = G().init(); $('help').textContent = TWO() ? G().help2 : G().help;
   $('btnStart').classList.add('hidden'); $('btnPause').classList.remove('hidden'); $('btnPause').textContent = '⏸ Pause';
   render(); timer = setTimeout(tick, 600);
 }
@@ -776,7 +798,11 @@ function showMenu(step) {
   document.querySelectorAll('[data-gname]').forEach(e => e.textContent = G().name);
   document.querySelectorAll('[data-gicon]').forEach(e => e.textContent = G().icon);
   $('selBest').textContent = best();
-  $('readyInfo').textContent = `${LEVELS[+$('level').value]} · best ${best()}` + (cur.ready ? '' : ' · ⚠ curtain not connected (preview only)');
+  twoP = !!G().ok && store.get('players_' + game, '1') === '2';
+  $('modeBox').classList.toggle('hidden', !G().ok);
+  $('levelBox').classList.toggle('hidden', TWO());
+  $('m1').classList.toggle('on', !TWO()); $('m2').classList.toggle('on', TWO());
+  $('readyInfo').textContent = TWO() ? '👥 2 Players — take turns on this phone' : `${LEVELS[+$('level').value]} · best ${best()}` + (cur.ready ? '' : ' · ⚠ curtain not connected (preview only)');
   [1, 2, 3].forEach(n => { const v = $('v' + n); v.classList.toggle('cur', n === step); v.classList.toggle('prev', n < step); });
   frame.fill(OFF); draw();
 }
@@ -798,6 +824,8 @@ document.querySelectorAll('[data-back]').forEach(b => b.onclick = () => showMenu
 document.querySelectorAll('[data-go]').forEach(b => b.onclick = () => showMenu(+b.dataset.go));
 document.querySelectorAll('[data-logo]').forEach(i => i.src = $('favicon').href);
 $('v1Conn').onclick = () => $('btnConnect').click();
+$('m1').onclick = () => { store.set('players_' + game, '1'); showMenu(2); };
+$('m2').onclick = () => { store.set('players_' + game, '2'); showMenu(2); };
 $('btnPlay').onclick = () => newGame(game);
 $('btnMenu').onclick = () => showMenu(3);
 $('btnStart').onclick = start;
