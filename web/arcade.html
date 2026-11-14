@@ -64,6 +64,7 @@
   .biglogo { width:84px; height:84px; border-radius:20px; margin-bottom:10px; }
   .bigicon { font-size:72px; }
   .bigscore { font-size:72px; font-weight:800; color:#ffd54a; line-height:1; }
+  [data-game].gfocus { outline:3px solid var(--accent); outline-offset:2px; }
   .seg { display:flex; gap:8px; margin-top:10px; justify-content:center; }
   .seg button.on { background:var(--accent); color:#0b0d12; border-color:var(--accent); font-weight:600; }
   .playbig { margin-top:30px; width:100%; max-width:320px; height:90px; font-size:30px; border-radius:24px; }
@@ -185,6 +186,7 @@
       <div class="gbab"><div class="ab" id="gBbox"><button id="gB">B</button><small id="gBl">DROP</small></div><div class="ab hi"><button id="gA">A</button><small id="gAl">ROTATE</small></div></div>
     </div>
     <div class="muted" id="help" style="text-align:center; margin-top:10px"></div>
+    <div class="muted hidden" id="padInfo" style="text-align:center; margin-top:6px; font-size:12px">🎮 Controller: stick / D-pad move · A rotate/place · B (or Y) drop · Start pause · Back menu</div>
   </div>
 
   <div class="card">
@@ -913,10 +915,77 @@ $('btnPause').onclick = () => {
   J.addEventListener('pointerup', end); J.addEventListener('pointercancel', end);
 })();
 // clavier (PC) et glissés sur l'aperçu
+// ---------- manette (Xbox / XInput, PlayStation, etc. via l'API Gamepad) + clavier dans les menus ----------
+// actions : up down left right a b start back
+const inMenu = () => !$('views').classList.contains('off');
+const curView = () => [1, 2, 3].find(n => $('v' + n).classList.contains('cur')) || 1;
+let focusIdx = 0;
+function menuFocus(i) {
+  const bs = [...document.querySelectorAll('[data-game]')]; focusIdx = (i + bs.length) % bs.length;
+  bs.forEach((b, j) => b.classList.toggle('gfocus', j === focusIdx));
+}
+function menuAction(a) {
+  const v = curView();
+  if (v === 1) {
+    const bs = [...document.querySelectorAll('[data-game]')];
+    if (!document.querySelector('.gfocus')) { menuFocus(Math.max(0, bs.findIndex(b => b.dataset.game === game))); if (a !== 'a') return; }
+    const cols = bs.filter(b => b.offsetTop === bs[0].offsetTop).length || 1;
+    if (a === 'left') menuFocus(focusIdx - 1); if (a === 'right') menuFocus(focusIdx + 1);
+    if (a === 'up') menuFocus(focusIdx - cols); if (a === 'down') menuFocus(Math.min(bs.length - 1, focusIdx + cols));
+    if (a === 'a' || a === 'start') bs[focusIdx].click();
+  } else if (v === 2) {
+    if ((a === 'left' || a === 'right') && !$('levelBox').classList.contains('hidden')) {
+      $('level').value = Math.max(0, Math.min(2, +$('level').value + (a === 'left' ? -1 : 1))); $('level').oninput();
+    }
+    if ((a === 'up' || a === 'down') && G().ok) $(TWO() ? 'm1' : 'm2').click();
+    if (a === 'a' || a === 'start') showMenu(3); if (a === 'b' || a === 'back') showMenu(1);
+  } else {
+    if (a === 'a' || a === 'start') $('btnPlay').click(); if (a === 'b' || a === 'back') showMenu(2);
+  }
+}
+function playAction(a) {
+  if (a === 'back') { $('btnMenu').click(); return; }
+  if (over) { if (a === 'a' || a === 'start') $('btnStart').click(); return; }
+  if (a === 'start') { $('btnPause').click(); return; }
+  if (a === 'a') press(game === 'tetris' ? 'up' : 'drop');
+  else if (a === 'b') { if (game === 'tetris') press('drop'); }
+  else press(a);
+}
+const act = a => inMenu() ? menuAction(a) : playAction(a);
 addEventListener('keydown', e => {
-  const k = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', ' ': 'drop' }[e.key];
-  if (k) { e.preventDefault(); press(k); }
+  if (e.repeat && inMenu()) return;
+  const m = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', Enter: 'a', Escape: 'back', p: 'start', P: 'start' }[e.key];
+  if (e.key === ' ') { e.preventDefault(); if (inMenu()) menuAction('a'); else if (!over) press('drop'); else $('btnStart').click(); return; }
+  if (m) { e.preventDefault(); act(m); }
 });
+(() => {
+  const held = {}, next = {};
+  let known = false;
+  const fast = () => !inMenu() && ['tetris', 'pong', 'bricks'].includes(game);
+  function poll(t) {
+    const pads = navigator.getGamepads ? [...navigator.getGamepads()].filter(Boolean) : [];
+    if ((pads.length > 0) !== known) { known = pads.length > 0; log(known ? `🎮 Controller connected: ${pads[0].id}` : '🎮 Controller disconnected'); $('padInfo').classList.toggle('hidden', !known); }
+    const st = { up: 0, down: 0, left: 0, right: 0, a: 0, b: 0, start: 0, back: 0 };
+    let tilt = 0;
+    for (const g of pads) {
+      const B = i => g.buttons[i] && g.buttons[i].pressed, x = g.axes[0] || 0, y = g.axes[1] || 0;
+      if (B(12) || y < -0.5) st.up = 1; if (B(13) || y > 0.5) st.down = 1;
+      if (B(14) || x < -0.5) st.left = 1; if (B(15) || x > 0.5) st.right = 1;
+      if (B(0)) st.a = 1; if (B(1) || B(2)) st.b = 1; if (B(3)) { if (game === 'tetris' && !inMenu()) st.b = 1; else st.a = 1; }
+      if (B(9)) st.start = 1; if (B(8)) st.back = 1;
+      tilt = Math.max(tilt, Math.abs(x)); if (B(14) || B(15)) tilt = 1;
+    }
+    for (const k in st) {
+      if (st[k] && !held[k]) { held[k] = 1; act(k); next[k] = t + (fast() && k !== 'up' ? 170 : 380); }
+      else if (st[k] && held[k] && ['up', 'down', 'left', 'right'].includes(k) && t >= next[k]) {
+        if (inMenu() || fast()) { act(k); next[k] = t + (inMenu() ? 160 : game === 'tetris' ? (k === 'down' ? 50 : 75) : tilt > 0.85 ? 55 : 110); }
+      } else if (!st[k]) held[k] = 0;
+    }
+    requestAnimationFrame(poll);
+  }
+  addEventListener('gamepadconnected', () => {});
+  requestAnimationFrame(poll);
+})();
 let sw = null;
 $('screen').addEventListener('pointerdown', e => { sw = [e.clientX, e.clientY]; });
 $('screen').addEventListener('pointerup', e => {

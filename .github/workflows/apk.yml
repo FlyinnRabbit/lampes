@@ -46,6 +46,8 @@ jobs:
           VERSION=$(grep -o 'version [0-9]*</span>' web/lampes-bt.html | grep -o '[0-9]*')
           sed "s/__VERSION__/$VERSION/g" pc/installer-head.cmd > Install-Lamps.cmd
           sed 's/\r$//; s/$/\r/' web/lampes-bt.html >> Install-Lamps.cmd
+          printf '\r\n#ARCADESTART\r\n' >> Install-Lamps.cmd
+          sed 's/\r$//; s/$/\r/' web/arcade.html >> Install-Lamps.cmd
 
       - uses: actions/upload-artifact@v4
         with:
@@ -61,5 +63,17 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="v${{ github.run_number }}"
+          cat > release-notes.md <<'NOTES'
+          ## 📱 Phone (Android)
+          - **Lampes.apk**: the Lamps app (MELK sticks + Hello Fairy curtain: colours, animations, flags, music, Ambilight, timer, alarm...).
+          - **Lamps-Arcade.apk**: Lamps Arcade, 7 games on the 20×20 curtain: Snake, Tetris, Light Cycles, Connect Four, Pong, Brick Breaker, Tic-Tac-Toe (joystick and Game Boy-style controls, 2-player mode for Connect Four and Tic-Tac-Toe).
+
+          ## 💻 PC (Windows)
+          - **Install-Lamps.cmd**: download it and double-click it. It installs **Lamps** and **Lamps Arcade** (Desktop + Start menu shortcuts), using Chrome or Edge.
+          - Lamps Arcade on PC: keyboard (arrows, Space, Enter, Esc, P) or a game controller (Xbox / XInput, PlayStation...).
+
+          Run only one app at a time: close Lamps before playing Lamps Arcade.
+          NOTES
+          sed -i 's/^          //' release-notes.md
           gh release create "$TAG" Lampes.apk Lamps-Arcade.apk Install-Lamps.cmd --title "Lamps $TAG" \
-            --notes "Phone: Lampes.apk (lamps app) and Lamps-Arcade.apk (Snake and Tetris on the curtain). PC (Windows): download Install-Lamps.cmd and double-click it." --latest
+            --notes-file release-notes.md --latest
