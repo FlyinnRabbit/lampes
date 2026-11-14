@@ -182,7 +182,7 @@
         <button id="gLeft">◀</button><span class="hub"></span><button id="gRight">▶</button>
         <button class="blank"></button><button id="gDown">▼</button><button class="blank"></button>
       </div>
-      <div class="gbab"><div class="ab"><button id="gB">B</button><small>DROP</small></div><div class="ab hi"><button id="gA">A</button><small>ROTATE</small></div></div>
+      <div class="gbab"><div class="ab" id="gBbox"><button id="gB">B</button><small id="gBl">DROP</small></div><div class="ab hi"><button id="gA">A</button><small id="gAl">ROTATE</small></div></div>
     </div>
     <div class="muted" id="help" style="text-align:center; margin-top:10px"></div>
   </div>
@@ -676,7 +676,7 @@ const Bricks = {
 // --- Connect Four : 7 colonnes × 6 rangées ; toi en rouge, l'ordinateur en jaune
 const Connect4 = {
   name: 'Connect Four', icon: '🔴', stat: 'Wins', ok: true,
-  help: '◀ ▶ choose a column, ● (or ▼) to drop your red disc. Line up 4 to win!',
+  help: '◀ ▶ choose a column, A to drop your red disc. Line up 4 to win!',
   help2: '2 players: take turns. The cursor colour shows whose turn it is (red or yellow). Line up 4 to win!',
   init() { const st = {}; boardInit(st); Connect4.reset(st); return st; },
   reset(st) { st.b = Array.from({ length: 6 }, () => new Array(7).fill(0)); st.col = 3; st.line = null; boardStart(st); },
@@ -736,7 +736,7 @@ const Connect4 = {
 // --- Tic-Tac-Toe : grille 3×3 ; toi = X cyan, l'ordinateur = O rouge
 const TTT = {
   name: 'Tic-Tac-Toe', icon: '⭕', stat: 'Wins', ok: true,
-  help: 'Arrows move the yellow cursor, ● (or ▼) to place your X. Get 3 in a row!',
+  help: 'The cross moves the yellow cursor, A places your X. Get 3 in a row!',
   help2: '2 players: take turns. Cyan cursor = X, red cursor = O. Get 3 in a row!',
   init() { const st = {}; boardInit(st); TTT.reset(st); return st; },
   reset(st) { st.b = new Array(9).fill(0); st.cur = 4; st.line = null; boardStart(st); },
@@ -838,7 +838,9 @@ function newGame(g) {
   $('playTitle').textContent = G().icon + ' ' + G().name;
   $('kDrop').classList.toggle('blank', g === 'snake' || g === 'cycles' || g === 'pong' || g === 'bricks');
   $('kDrop').textContent = G().ok ? '●' : '⤓'; $('best').textContent = best();
-  const joy = ['snake', 'cycles', 'pong', 'bricks'].includes(g), gb = g === 'tetris';
+  const joy = ['snake', 'cycles', 'pong', 'bricks'].includes(g), gb = g === 'tetris' || !!G().ok;
+  $('gAl').textContent = g === 'tetris' ? 'ROTATE' : 'PLACE';
+  $('gBbox').style.visibility = g === 'tetris' ? '' : 'hidden';
   $('joyBox').classList.toggle('hidden', !joy); $('gb').classList.toggle('hidden', !gb);
   document.querySelector('.pad').classList.toggle('hidden', joy || gb);
   start();
@@ -876,11 +878,12 @@ $('btnPause').onclick = () => {
   ['pointerup', 'pointerleave', 'pointercancel'].forEach(t => el.addEventListener(t, stop));
 });
 // manette Game Boy (Tetris) : croix + A tourner, B tomber ; ◀ ▶ ▼ se répètent si on garde le doigt
-[['gUp', 'drop'], ['gDown', 'down'], ['gLeft', 'left'], ['gRight', 'right'], ['gA', 'up'], ['gB', 'drop']].forEach(([id, k]) => {
+// Puissance 4 / Morpion : la croix déplace le curseur, A pose le pion
+[['gUp', 'drop', 'up'], ['gDown', 'down', 'down'], ['gLeft', 'left', 'left'], ['gRight', 'right', 'right'], ['gA', 'up', 'drop'], ['gB', 'drop', 'drop']].forEach(([id, kt, kb]) => {
   const el = $(id); let rep = null, first = null;
   const stop = () => { clearTimeout(first); clearInterval(rep); rep = first = null; };
-  el.addEventListener('pointerdown', e => { e.preventDefault(); stop(); press(k); if (navigator.vibrate) navigator.vibrate(8);
-    if (k === 'left' || k === 'right' || k === 'down') first = setTimeout(() => rep = setInterval(() => press(k), k === 'down' ? 50 : 75), 170); });
+  el.addEventListener('pointerdown', e => { e.preventDefault(); stop(); const k = game === 'tetris' ? kt : kb; press(k); if (navigator.vibrate) navigator.vibrate(8);
+    if (game === 'tetris' && (k === 'left' || k === 'right' || k === 'down')) first = setTimeout(() => rep = setInterval(() => press(k), k === 'down' ? 50 : 75), 170); });
   ['pointerup', 'pointerleave', 'pointercancel'].forEach(t => el.addEventListener(t, stop));
 });
 // joystick : 4 directions pour Snake / Light Cycles, gauche-droite continu pour Pong / Brick Breaker
