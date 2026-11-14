@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Lamps Arcade</title>
+<link rel="icon" id="favicon" type="image/png" href="data:image/png;base64,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">
+<style>
+  :root { --bg:#111318; --card:#1b1e26; --line:#2b2f3a; --text:#e8eaf0; --muted:#8a90a0; --accent:#7c9cff; --good:#3ddc84; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { margin:0; background:var(--bg); color:var(--text); font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+  main { max-width: 520px; margin: 0 auto; padding: 14px 14px 40px; }
+  h1 { font-size: 24px; margin: 6px 0 2px; display:flex; align-items:center; gap:10px; }
+  h1 img { width:34px; height:34px; border-radius:8px; }
+  .muted { color: var(--muted); font-size: 14px; }
+  .card { background: var(--card); border:1px solid var(--line); border-radius:16px; padding:14px; margin-top:12px; }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:10px; }
+  button { font: inherit; color: var(--text); background:#262a35; border:1px solid var(--line); border-radius:12px; padding:10px 14px; cursor:pointer; }
+  button.primary { background: var(--accent); color:#0b0d12; border-color: var(--accent); font-weight:600; }
+  button.sel { outline: 2px solid var(--accent); }
+  button:disabled { opacity:.45; }
+  .dot { width:10px; height:10px; border-radius:50%; background:#555; display:inline-block; }
+  .dot.on { background: var(--good); }
+  #screen { width:100%; max-width:360px; aspect-ratio:1; display:block; margin:10px auto 0; background:#06070a; border-radius:14px; touch-action:none; }
+  .stats { display:flex; justify-content:space-around; text-align:center; margin-top:10px; }
+  .stats b { display:block; font-size:22px; }
+  .pad { display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; max-width:330px; margin:14px auto 0; }
+  .pad button { height:72px; font-size:28px; border-radius:18px; touch-action: manipulation; user-select:none; -webkit-user-select:none; }
+  .pad .blank { visibility:hidden; }
+  .hidden { display:none !important; }
+  label { font-size:14px; }
+  select { font: inherit; color: var(--text); background:#262a35; border:1px solid var(--line); border-radius:10px; padding:8px; }
+  /* menu en 3 écrans plein écran, qui glissent l'un après l'autre */
+  #views { position:fixed; inset:0; z-index:5; overflow:hidden; background:var(--bg); }
+  #views.off { display:none; }
+  .view { position:absolute; inset:0; display:flex; flex-direction:column; transition: transform .28s ease; transform: translateX(100%); background:var(--bg); }
+  .view.cur { transform: translateX(0); }
+  .view.prev { transform: translateX(-100%); }
+  .view header { display:flex; align-items:center; justify-content:space-between; padding:14px 16px; font-size:18px; }
+  .view header b { flex:1; text-align:center; }
+  .view header > :first-child, .view header .conn { width:48px; }
+  .view .conn { text-align:right; }
+  .back { font-size:22px; padding:6px 14px; }
+  .vbody { flex:1; overflow:auto; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:0 22px; text-align:center; gap:6px; }
+  .view footer { display:flex; gap:10px; padding:16px; }
+  .view footer button { flex:1; height:58px; font-size:18px; border-radius:16px; }
+  .vtitle { font-size:22px; font-weight:700; }
+  .biglogo { width:84px; height:84px; border-radius:20px; margin-bottom:10px; }
+  .bigicon { font-size:72px; }
+  .bigscore { font-size:72px; font-weight:800; color:#ffd54a; line-height:1; }
+  .playbig { margin-top:30px; width:100%; max-width:320px; height:90px; font-size:30px; border-radius:24px; }
+  .view input[type=range] { width:100%; max-width:360px; }
+  .ticks { display:flex; justify-content:space-between; width:100%; max-width:360px; }
+  .step { font-weight:700; font-size:17px; }
+  .pick { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:12px; }
+  .pick button { height:96px; font-size:36px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; border-radius:18px; }
+  .pick span { font-size:18px; font-weight:600; }
+  .bestbox { text-align:center; margin-top:12px; padding:14px; border-radius:14px; background:#20242e; }
+  .bestbox b { display:block; font-size:44px; color:#ffd54a; }
+  .ticks { display:flex; justify-content:space-between; font-size:13px; color:var(--muted); }
+  input[type=range] { accent-color: var(--accent); height:30px; }
+  #log { font: 12px ui-monospace, monospace; color: var(--muted); max-height:140px; overflow:auto; white-space:pre-wrap; margin-top:8px; }
+</style>
+</head>
+<body>
+<div id="views">
+  <!-- écran 1 : le jeu -->
+  <section class="view" id="v1">
+    <header><span></span><b>Lamps Arcade</b><span class="conn"><span class="dot" data-dot></span></span></header>
+    <div class="vbody">
+      <img class="biglogo" data-logo alt="">
+      <div class="vtitle">Choose a game</div>
+      <div class="pick">
+        <button data-game="snake">🐍<span>Snake</span></button>
+        <button data-game="tetris">🟦<span>Tetris</span></button>
+        <button data-game="cycles">🏍️<span>Light Cycles</span></button>
+        <button data-game="connect4">🔴<span>Connect Four</span></button>
+        <button data-game="pong">🏓<span>Pong</span></button>
+        <button data-game="bricks">🧱<span>Brick Breaker</span></button>
+        <button data-game="ttt">⭕<span>Tic-Tac-Toe</span></button>
+      </div>
+    </div>
+    <footer><button id="v1Conn">🔗 Connect the curtain</button></footer>
+  </section>
+  <!-- écran 2 : meilleur score et difficulté -->
+  <section class="view" id="v2">
+    <header><button class="back" data-back="1">←</button><b data-gname></b><span class="conn"><span class="dot" data-dot></span></span></header>
+    <div class="vbody">
+      <div class="bigicon" data-gicon></div>
+      <div class="muted">🏆 Best score</div>
+      <div class="bigscore" id="selBest">0</div>
+      <div class="vtitle" style="margin-top:28px">Difficulty: <span id="levelName">Normal</span></div>
+      <input type="range" id="level" min="0" max="2" step="1" value="1">
+      <div class="ticks"><span>Easy</span><span>Normal</span><span>Hard</span></div>
+    </div>
+    <footer><button data-back="1">← Return</button><button class="primary" data-go="3">Next →</button></footer>
+  </section>
+  <!-- écran 3 : jouer ou revenir -->
+  <section class="view" id="v3">
+    <header><button class="back" data-back="2">←</button><b>Ready?</b><span class="conn"><span class="dot" data-dot></span></span></header>
+    <div class="vbody">
+      <div class="bigicon" data-gicon></div>
+      <div class="vtitle" data-gname></div>
+      <div class="muted" id="readyInfo"></div>
+      <button class="primary playbig" id="btnPlay">▶ Play</button>
+    </div>
+    <footer><button data-back="2" style="flex:1">← Return</button></footer>
+  </section>
+</div>
+<main>
+  <h1><img id="logo" alt="">Lamps Arcade</h1>
+  <div class="muted">Play 7 games on the 20×20 Hello Fairy curtain.</div>
+
+  <div class="card">
+    <div class="row" style="margin-top:0">
+      <span class="dot" id="connDot"></span>
+      <span id="connName" class="muted">No curtain connected</span>
+    </div>
+    <div class="row">
+      <button class="primary" id="btnConnect">Connect the curtain</button>
+      <button id="btnRe" class="hidden">Reconnect</button>
+    </div>
+    <details style="margin-top:10px"><summary class="muted">Settings</summary>
+      <div class="row">
+        <label><input type="checkbox" id="flipX" checked> Mirror left/right</label>
+        <label><input type="checkbox" id="flipY"> Upside down</label>
+      </div>
+      <div class="muted" style="margin-top:6px">If the game appears mirrored or upside down on the curtain, change these.</div>
+    </details>
+  </div>
+
+  <div class="card hidden" id="play">
+    <div class="row" style="margin-top:0; justify-content:space-between">
+      <button id="btnMenu">← Menu</button>
+      <b id="playTitle"></b>
+    </div>
+    <canvas id="screen" width="400" height="400"></canvas>
+    <div class="stats">
+      <div><span class="muted">Score</span><b id="score">0</b></div>
+      <div><span class="muted" id="lab2">Length</span><b id="stat2">3</b></div>
+      <div><span class="muted">Best</span><b id="best">0</b></div>
+    </div>
+    <div class="row" style="justify-content:center">
+      <button id="btnPause">⏸ Pause</button>
+      <button class="primary hidden" id="btnStart">↻ Play again</button>
+    </div>
+    <div class="pad">
+      <button class="blank"></button><button id="kUp">▲</button><button class="blank"></button>
+      <button id="kLeft">◀</button><button id="kDrop">⤓</button><button id="kRight">▶</button>
+      <button class="blank"></button><button id="kDown">▼</button><button class="blank"></button>
+    </div>
+    <div class="muted" id="help" style="text-align:center; margin-top:10px"></div>
+  </div>
+
+  <div class="card">
+    <details><summary class="muted">Log</summary><div id="log"></div></details>
+  </div>
+</main>
+
+<script>
+const IS_ANDROID = !!window.AndroidBle;
+if (IS_ANDROID) (() => {
+  const canon = n => typeof n === 'number'
+    ? '0000' + n.toString(16).padStart(4, '0') + '-0000-1000-8000-00805f9b34fb' : String(n).toLowerCase();
+  if (!window.BluetoothUUID) window.BluetoothUUID = { canonicalUUID: canon };
+  const err = (msg, name = 'NetworkError') => new DOMException(msg, name);
+  const b64 = u8 => { let s = ''; for (const b of u8) s += String.fromCharCode(b); return btoa(s); };
+  const unb64 = s => Uint8Array.from(atob(s || ''), c => c.charCodeAt(0));
+  const toU8 = d => d instanceof Uint8Array ? d : d instanceof ArrayBuffer ? new Uint8Array(d)
+    : new Uint8Array(d.buffer, d.byteOffset, d.byteLength);
+
+  const ops = {}; let opn = 0;
+  const op = start => new Promise((res, rej) => { const id = 'op' + (++opn); ops[id] = { res, rej }; start(id); });
+
+  class Events {
+    constructor() { this._l = {}; }
+    addEventListener(t, f) { (this._l[t] = this._l[t] || []).push(f); }
+    removeEventListener(t, f) { this._l[t] = (this._l[t] || []).filter(x => x !== f); }
+    _emit(t) { const e = { type: t, target: this }; (this._l[t] || []).forEach(f => { try { f(e); } catch (x) { console.error(x); } }); }
+  }
+  class Characteristic extends Events {
+    constructor(dev, service, j) {
+      super(); this._dev = dev; this.service = service; this.uuid = j.uuid.toLowerCase(); this.value = null;
+      const p = j.props;
+      this.properties = { broadcast: !!(p & 1), read: !!(p & 2), writeWithoutResponse: !!(p & 4), write: !!(p & 8), notify: !!(p & 16), indicate: !!(p & 32) };
+    }
+    _write(data, withResponse) {
+      if (!this._dev.gatt.connected) return Promise.reject(err('GATT Server is disconnected. Cannot perform GATT operations.'));
+      return op(id => AndroidBle.write(this._dev.id, this.service.uuid, this.uuid, b64(toU8(data)), withResponse, id))
+        .then(() => undefined);
+    }
+    writeValueWithResponse(d) { return this._write(d, true); }
+    writeValueWithoutResponse(d) { return this._write(d, false); }
+    writeValue(d) { return this._write(d, this.properties.write); }
+    readValue() {
+      return op(id => AndroidBle.read(this._dev.id, this.service.uuid, this.uuid, id))
+        .then(v => (this.value = new DataView(unb64(v).buffer)));
+    }
+    startNotifications() { return op(id => AndroidBle.notify(this._dev.id, this.service.uuid, this.uuid, id)).then(() => this); }
+    stopNotifications() { return Promise.resolve(this); }
+  }
+  class Service {
+    constructor(dev, j) { this.device = dev; this.uuid = j.uuid.toLowerCase(); this._c = j.chars.map(c => new Characteristic(dev, this, c)); }
+    async getCharacteristic(u) {
+      const c = this._c.find(x => x.uuid === canon(u));
+      if (!c) throw err('No Characteristics matching UUID ' + canon(u) + ' found in Service.', 'NotFoundError');
+      return c;
+    }
+    async getCharacteristics(u) { return u ? this._c.filter(x => x.uuid === canon(u)) : this._c.slice(); }
+  }
+  class Gatt {
+    constructor(dev) { this.device = dev; this.connected = false; this._s = []; this._pending = null; this.mtu = 23; }
+    connect() {
+      if (this.connected) return Promise.resolve(this);
+      if (this._pending) return this._pending.p;
+      let r, j; const p = new Promise((a, b) => { r = a; j = b; });
+      this._pending = { p, r, j };
+      AndroidBle.connect(this.device.id);
+      this._timer = setTimeout(() => {
+        if (!this._pending) return;
+        const x = this._pending; this._pending = null;
+        AndroidBle.disconnect(this.device.id);
+        x.j(err('Connection attempt failed.'));
+      }, 15000);
+      return p;
+    }
+    disconnect() { AndroidBle.disconnect(this.device.id); }
+    async getPrimaryServices(u) {
+      if (!this.connected) throw err('GATT Server is disconnected. Cannot retrieve services. (Re)connect first with `device.gatt.connect`.');
+      return u ? this._s.filter(s => s.uuid === canon(u)) : this._s.slice();
+    }
+    async getPrimaryService(u) {
+      const s = (await this.getPrimaryServices()).find(x => x.uuid === canon(u));
+      if (!s) throw err('No Services matching UUID ' + canon(u) + ' found in Device.', 'NotFoundError');
+      return s;
+    }
+  }
+  class Device extends Events {
+    constructor(id, name) { super(); this.id = id; this.name = name || ''; this.gatt = new Gatt(this); }
+    forget() { const k = known(); delete k[this.id]; saveKnown(k); return Promise.resolve(); }
+  }
+  const known = () => { try { return JSON.parse(localStorage.getItem('androidKnown')) || {}; } catch (e) { return {}; } };
+  const saveKnown = k => { try { localStorage.setItem('androidKnown', JSON.stringify(k)); } catch (e) { } };
+  const devs = {};
+  const device = (id, name) => { const d = devs[id] || (devs[id] = new Device(id, name)); if (name) d.name = name; return d; };
+
+  // ---------- fenêtre de choix des appareils ----------
+  let chooser = null;
+  function choose(opts) {
+    if (chooser) chooser.cancel();
+    if (!AndroidBle.enabled()) { AndroidBle.enable(); return Promise.reject(err('Turn Bluetooth on and try again.', 'NotFoundError')); }
+    return new Promise((resolve, reject) => {
+      const filters = opts.filters || [];
+      const match = (name, uuids) => opts.acceptAllDevices ? true : filters.some(f =>
+        (f.name && name === f.name) || (f.namePrefix && name && name.startsWith(f.namePrefix)) ||
+        (f.services && f.services.some(s => uuids.includes(canon(s)))));
+      const box = document.createElement('div');
+      box.style.cssText = 'position:fixed;inset:0;z-index:99;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center';
+      box.innerHTML = `<div style="background:#1b1e26;border:1px solid #2b2f3a;border-radius:16px 16px 0 0;width:100%;max-width:520px;max-height:75vh;display:flex;flex-direction:column;padding:16px">
+        <div style="font-weight:600;font-size:17px;margin-bottom:4px">Choose a lamp</div>
+        <div class="muted" id="bleScanState" style="margin-bottom:10px">Searching…</div>
+        <div id="bleList" style="overflow:auto;display:flex;flex-direction:column;gap:8px"></div>
+        <button id="bleCancel" style="margin-top:12px">Cancel</button></div>`;
+      document.body.appendChild(box);
+      const list = box.querySelector('#bleList'), seen = {};
+      const close = () => { AndroidBle.stopScan(); box.remove(); chooser = null; };
+      chooser = {
+        add(addr, name, rssi, uuids) {
+          if (!name || !match(name, uuids)) return;
+          if (seen[addr]) { seen[addr].querySelector('.rssi').textContent = rssi + ' dBm'; return; }
+          const b = document.createElement('button');
+          b.style.cssText = 'display:flex;justify-content:space-between;padding:14px;text-align:left';
+          b.innerHTML = `<span>${name}</span><span class="rssi muted">${rssi} dBm</span>`;
+          b.onclick = () => { close(); resolve(device(addr, name)); };
+          seen[addr] = b; list.appendChild(b);
+          box.querySelector('#bleScanState').textContent = 'Tap the lamp to connect.';
+        },
+        error(m) { box.querySelector('#bleScanState').textContent = 'Search failed: ' + m; },
+        cancel() { close(); reject(err('User cancelled the requestDevice() chooser.', 'NotFoundError')); },
+      };
+      box.querySelector('#bleCancel').onclick = () => chooser.cancel();
+      AndroidBle.startScan();
+      setTimeout(() => { if (chooser && !list.children.length) chooser.error('no lamp found — check it\'s on and the official app is closed'); }, 12000);
+    });
+  }
+
+  // ---------- réponses du Bluetooth natif ----------
+  window.__ble = {
+    onConnected(addr, mtu, json) {
+      const d = devs[addr]; if (!d) return;
+      const g = d.gatt; clearTimeout(g._timer);
+      g.connected = true; g.mtu = mtu;
+      g._s = JSON.parse(json).map(s => new Service(d, s));
+      const k = known(); k[addr] = d.name; saveKnown(k);
+      if (g._pending) { const x = g._pending; g._pending = null; x.r(g); }
+    },
+    onDisconnected(addr, why) {
+      const d = devs[addr]; if (!d) return;
+      const g = d.gatt; clearTimeout(g._timer);
+      const was = g.connected; g.connected = false;
+      if (g._pending) { const x = g._pending; g._pending = null; x.j(err('Connection attempt failed. (' + why + ')')); }
+      if (was) d._emit('gattserverdisconnected');
+    },
+    onOp(id, ok, v) {
+      const o = ops[id]; if (!o) return; delete ops[id];
+      ok ? o.res(v) : o.rej(err('GATT operation failed for unknown reason.'));
+    },
+    onNotify(addr, uuid, v) {
+      const d = devs[addr]; if (!d) return;
+      const u = uuid.toLowerCase(), data = unb64(v);
+      d.gatt._s.forEach(s => s._c.forEach(c => { if (c.uuid === u) { c.value = new DataView(data.buffer); c._emit('characteristicvaluechanged'); } }));
+    },
+    onScan(addr, name, rssi, uuids) { if (chooser) chooser.add(addr, name, rssi, JSON.parse(uuids || '[]')); },
+    onScanError(m) { if (chooser) chooser.error(m); },
+  };
+
+  Object.defineProperty(navigator, 'bluetooth', { configurable: true, value: {
+    requestDevice: opts => choose(opts || {}),
+    getDevices: async () => Object.entries(known()).map(([id, name]) => device(id, name)),
+  } });
+})();
+
+/* ---------- Lamps Arcade ---------- */
+const $ = id => document.getElementById(id);
+const N = 20, OFF = 254, WHITE = 255;
+const hueByte = deg => Math.round((((deg % 360) + 360) % 360) / 2) % 181;
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const store = { get(k, d) { try { const v = localStorage.getItem('arc_' + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+                set(k, v) { try { localStorage.setItem('arc_' + k, JSON.stringify(v)); } catch (e) {} } };
+function log(m) { const el = $('log'); el.textContent += `[${new Date().toLocaleTimeString()}] ${m}\n`; el.scrollTop = el.scrollHeight; }
+$('logo').src = $('favicon').href;
+
+/* ---------- Bluetooth : rideau Hello Fairy ---------- */
+const SVC = '49535343-fe7d-4ae5-8fa9-9fafd205e455', CHR = '49535343-8841-43f4-a8d4-ecbe34729bb3';
+const fairy = b => [...b, b.reduce((a, x) => a + x, 0) & 0xff];
+const cur = { device: null, ch: null, ready: false };
+async function write(bytes) {
+  for (let i = 0; ; i++) {
+    try {
+      const data = new Uint8Array(bytes), ch = cur.ch;
+      if (ch.writeValueWithoutResponse) return await ch.writeValueWithoutResponse(data);
+      return await ch.writeValue(data);
+    } catch (e) {
+      if (i < 10 && /in progress|busy/i.test(e.message)) { await sleep(40 + i * 30); continue; }
+      throw e;
+    }
+  }
+}
+async function openCurtain(device) {
+  cur.device = device; cur.ready = false;
+  $('connName').textContent = 'Connecting to ' + (device.name || 'curtain') + '…';
+  try {
+    const server = await device.gatt.connect();
+    const svc = await server.getPrimaryService(SVC);
+    cur.ch = await svc.getCharacteristic(CHR);
+    device.addEventListener('gattserverdisconnected', () => {
+      cur.ready = false; $('connDot').classList.remove('on'); document.querySelectorAll('[data-dot]').forEach(d => d.classList.remove('on')); $('v1Conn').textContent = '🔗 Reconnect the curtain'; $('connName').textContent = 'Disconnected — tap Reconnect';
+      $('btnRe').classList.remove('hidden'); log('Curtain disconnected');
+    });
+    // panel mode: the curtain then accepts single-LED pixels
+    await write(fairy([0xaa, 0x02, 0x01, 0x01])); await sleep(100);
+    await write(fairy([0xaa, 0xd0, 0x04, 0x00, 0x64, 0x64, 3])); await sleep(20);
+    await write(fairy([0xaa, 0xd0, 0x04, 0x00, 0x64, 0x64, 0])); await sleep(250);
+    sent.fill(-1); cur.ready = true;
+    $('connDot').classList.add('on'); $('connName').textContent = '✓ ' + (device.name || 'Curtain');
+    document.querySelectorAll('[data-dot]').forEach(d => d.classList.add('on')); $('v1Conn').textContent = '✓ ' + (device.name || 'Curtain');
+    $('btnRe').classList.add('hidden'); store.set('lastName', device.name || '');
+    log('Connected to ' + device.name); draw();
+  } catch (e) { $('connName').textContent = 'Connection failed: ' + e.message; log('Error: ' + e.message); $('btnRe').classList.remove('hidden'); }
+}
+$('btnConnect').onclick = async () => {
+  let device;
+  try { device = await navigator.bluetooth.requestDevice({ filters: [{ namePrefix: 'Hello Fairy' }, { services: [SVC] }], optionalServices: [SVC] }); }
+  catch (e) { return log('Cancelled: ' + e.message); }
+  openCurtain(device);
+};
+$('btnRe').onclick = () => { if (cur.device) openCurtain(cur.device); };
+// PC : retrouve automatiquement le rideau déjà autorisé
+if (navigator.bluetooth && navigator.bluetooth.getDevices) navigator.bluetooth.getDevices().then(list => {
+  const d = list.find(x => (x.name || '').startsWith('Hello Fairy')); if (d) openCurtain(d);
+}).catch(() => {});
+
+/* ---------- envoi des pixels (seulement ceux qui changent, une LED par paquet) ---------- */
+const frame = new Array(N * N).fill(OFF), sent = new Array(N * N).fill(-1);
+['flipX', 'flipY'].forEach(id => { const v = store.get(id); if (v !== undefined) $(id).checked = v;
+  $(id).onchange = () => { store.set(id, $(id).checked); sent.fill(-1); }; });
+const devIndex = (r, c) => { let x = c, y = r; if ($('flipX').checked) x = N - 1 - x; if ($('flipY').checked) y = N - 1 - y; return x * N + y; };
+let sending = false;
+async function pump() {
+  if (sending || !cur.ready) return; sending = true;
+  try {
+    for (;;) {
+      if (!cur.ready) break;
+      // changements : la pièce / la tête d'abord (dessus de la liste), puis le reste
+      let idx = -1;
+      for (const i of priority) if (frame[i] !== sent[i]) { idx = i; break; }
+      if (idx < 0) for (let i = 0; i < N * N; i++) if (frame[i] !== sent[i]) { idx = i; break; }
+      if (idx < 0) break;
+      const v = frame[idx], k = devIndex(Math.floor(idx / N), idx % N);
+      await write(fairy([0xaa, 0xd1, 0x03, k >> 8, k & 0xff, v]));
+      sent[idx] = v;
+      await sleep(8);
+    }
+  } catch (e) { log('Send error: ' + e.message); }
+  sending = false;
+}
+let priority = [];
+
+/* ---------- aperçu sur le téléphone ---------- */
+const cx = $('screen').getContext('2d');
+function colorOf(v) { return v === OFF ? '#1b1e26' : v === WHITE ? '#ffffff' : `hsl(${v * 2},100%,50%)`; }
+function draw() {
+  const W = 400, k = W / N;
+  cx.fillStyle = '#06070a'; cx.fillRect(0, 0, W, W);
+  for (let i = 0; i < N * N; i++) {
+    const r = Math.floor(i / N), c = i % N, v = frame[i];
+    cx.fillStyle = colorOf(v); cx.beginPath();
+    cx.arc(c * k + k / 2, r * k + k / 2, v === OFF ? k * 0.12 : k * 0.42, 0, 7); cx.fill();
+  }
+  pump();
+}
+
+/* ---------- jeux ---------- */
+const H = { red: hueByte(0), orange: hueByte(30), yellow: hueByte(55), green: hueByte(120), cyan: hueByte(185), blue: hueByte(225), purple: hueByte(285) };
+let game = 'snake', state = null, timer = null, paused = false, over = false;
+const best = () => store.get('best_' + game, 0);
+function setScore(s, s2) { $('score').textContent = s; $('stat2').textContent = s2; if (s > best()) store.set('best_' + game, s); $('best').textContent = best(); }
+
+// --- Snake : la tête jaune, le corps vert, la pomme rouge ; les bords font le tour
+const Snake = {
+  help: 'Arrows to steer. The snake goes through the edges. Eat the red apples.',
+  init() {
+    const st = { body: [[10, 6], [10, 5], [10, 4]], dir: [0, 1], next: [0, 1], score: 0, grow: 0 };
+    Snake.food(st); return st;
+  },
+  food(st) { let f; do { f = [Math.floor(Math.random() * N), Math.floor(Math.random() * N)]; } while (st.body.some(b => b[0] === f[0] && b[1] === f[1])); st.food = f; },
+  speed() { return [320, 220, 150][+$('level').value]; },
+  key(st, k) {
+    const d = { up: [-1, 0], down: [1, 0], left: [0, -1], right: [0, 1] }[k]; if (!d) return;
+    if (d[0] === -st.dir[0] && d[1] === -st.dir[1]) return;      // pas de demi-tour sur soi-même
+    st.next = d;
+  },
+  step(st) {
+    st.dir = st.next;
+    const h = st.body[0], nh = [(h[0] + st.dir[0] + N) % N, (h[1] + st.dir[1] + N) % N];
+    if (st.body.slice(0, -1).some(b => b[0] === nh[0] && b[1] === nh[1])) return false;
+    st.body.unshift(nh);
+    if (nh[0] === st.food[0] && nh[1] === st.food[1]) { st.score += 10; st.grow += 1; Snake.food(st); }
+    if (st.grow > 0) st.grow--; else st.body.pop();
+    return true;
+  },
+  render(st, img) {
+    img[st.food[0] * N + st.food[1]] = H.red;
+    st.body.forEach(([r, c], i) => { img[r * N + c] = over ? H.red : i ? H.green : H.yellow; });
+    priority = [st.body[0][0] * N + st.body[0][1], st.body[st.body.length - 1][0] * N + st.body[st.body.length - 1][1], st.food[0] * N + st.food[1]];
+    setScore(st.score, st.body.length); $('lab2').textContent = 'Length';
+  },
+};
+
+// --- Tetris : puits de 10 colonnes au centre, murs bleus
+const PIECES = [[[0,0],[0,1],[0,2],[0,3]], [[0,0],[0,1],[1,0],[1,1]], [[0,1],[1,0],[1,1],[1,2]], [[0,0],[1,0],[1,1],[1,2]],
+                [[0,2],[1,0],[1,1],[1,2]], [[0,1],[0,2],[1,0],[1,1]], [[0,0],[0,1],[1,1],[1,2]]];
+const PCOL = ['cyan', 'yellow', 'purple', 'blue', 'orange', 'green', 'red'];
+const L = 5, W10 = 10;
+const Tetris = {
+  help: '◀ ▶ move · ▲ rotate · ▼ faster · ⤓ drop.',
+  init() { const st = { board: Array.from({ length: N }, () => new Array(W10).fill(-1)), score: 0, lines: 0 }; Tetris.spawn(st); return st; },
+  rot: cells => { const r = cells.map(([a, b]) => [b, -a]), mr = Math.min(...r.map(x => x[0])), mc = Math.min(...r.map(x => x[1])); return r.map(([a, b]) => [a - mr, b - mc]); },
+  fits(st, cells, y, x) { return cells.every(([r, c]) => c + x >= 0 && c + x < W10 && r + y < N && (r + y < 0 || st.board[r + y][c + x] < 0)); },
+  spawn(st) {
+    const k = Math.floor(Math.random() * 7);
+    st.cur = { cells: PIECES[k], k, x: 3, y: 0 };
+    return Tetris.fits(st, st.cur.cells, 0, 3);
+  },
+  speed(st) { return Math.max(90, [700, 500, 330][+$('level').value] - st.lines * 8); },
+  key(st, k) {
+    const c = st.cur;
+    if (k === 'left' && Tetris.fits(st, c.cells, c.y, c.x - 1)) c.x--;
+    if (k === 'right' && Tetris.fits(st, c.cells, c.y, c.x + 1)) c.x++;
+    if (k === 'up') { const r = Tetris.rot(c.cells); for (const dx of [0, -1, 1, -2, 2]) if (Tetris.fits(st, r, c.y, c.x + dx)) { c.cells = r; c.x += dx; break; } }
+    if (k === 'down' && Tetris.fits(st, c.cells, c.y + 1, c.x)) { c.y++; st.score += 1; }
+    if (k === 'drop') { while (Tetris.fits(st, c.cells, c.y + 1, c.x)) { c.y++; st.score += 2; } return 'lock'; }
+  },
+  step(st) {
+    const c = st.cur;
+    if (Tetris.fits(st, c.cells, c.y + 1, c.x)) { c.y++; return true; }
+    return Tetris.lock(st);
+  },
+  lock(st) {
+    const c = st.cur;
+    c.cells.forEach(([r, k]) => { if (r + c.y >= 0) st.board[r + c.y][k + c.x] = c.k; });
+    const keep = st.board.filter(row => !row.every(v => v >= 0)), n = N - keep.length;
+    if (n) { st.lines += n; st.score += [0, 100, 300, 500, 800][n]; while (keep.length < N) keep.unshift(new Array(W10).fill(-1)); st.board = keep; }
+    return Tetris.spawn(st);
+  },
+  render(st, img) {
+    for (let r = 0; r < N; r++) { img[r * N + L - 1] = H.blue; img[r * N + L + W10] = H.blue; }
+    st.board.forEach((row, r) => row.forEach((v, k) => { if (v >= 0) img[r * N + k + L] = over ? H.red : H[PCOL[v]]; }));
+    const c = st.cur; priority = [];
+    if (c && !over) c.cells.forEach(([r, k]) => { if (r + c.y >= 0) { img[(r + c.y) * N + k + c.x + L] = H[PCOL[c.k]]; priority.push((r + c.y) * N + k + c.x + L); } });
+    setScore(st.score, st.lines); $('lab2').textContent = 'Lines';
+  },
+};
+
+// ---------- utilitaires partagés ----------
+const LV = () => +$('level').value;                       // 0 easy, 1 normal, 2 hard
+const rnd = n => Math.floor(Math.random() * n);
+const pick = a => a[rnd(a.length)];
+// fin de manche (jeux de plateau) : on montre le résultat, puis manche suivante ou fin de partie
+function roundEnd(st, result) { st.phase = 'end'; st.result = result; st.wait = 6; }
+
+// --- Light Cycles : ta moto (cyan) contre l'ordinateur (orange) ; chaque moto laisse un mur
+const Cycles = {
+  name: 'Light Cycles', icon: '🏍️', stat: 'Round',
+  help: 'Steer with the arrows. Your trail and the computer\'s are walls: make it crash first!',
+  init() { const st = { score: 0, round: 1 }; Cycles.reset(st); return st; },
+  reset(st) {
+    st.grid = new Array(N * N).fill(0);
+    st.me = { r: 16, c: 10, d: [-1, 0] }; st.next = [-1, 0]; st.cpu = { r: 3, c: 10, d: [1, 0] };
+    st.grid[16 * N + 10] = 1; st.grid[3 * N + 10] = 2; st.phase = 'play';
+  },
+  speed() { return [230, 170, 120][LV()]; },
+  key(st, k) {
+    const d = { up: [-1, 0], down: [1, 0], left: [0, -1], right: [0, 1] }[k]; if (!d) return;
+    if (d[0] === -st.me.d[0] && d[1] === -st.me.d[1]) return; st.next = d;
+  },
+  free(st, r, c) { return r >= 0 && r < N && c >= 0 && c < N && !st.grid[r * N + c]; },
+  room(st, r, c) {                                   // cases libres atteignables (limité) : évite de s'enfermer
+    if (!Cycles.free(st, r, c)) return 0;
+    const seen = new Set([r * N + c]), q = [[r, c]];
+    while (q.length && seen.size < 80) {
+      const [a, b] = q.pop();
+      for (const [x, y] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const k = (a + x) * N + b + y;
+        if (!seen.has(k) && Cycles.free(st, a + x, b + y)) { seen.add(k); q.push([a + x, b + y]); } }
+    }
+    return seen.size;
+  },
+  step(st) {
+    if (st.phase === 'end') { if (--st.wait > 0) return true; if (st.result === 'lose') return false; st.round++; Cycles.reset(st); return true; }
+    const me = st.me, cpu = st.cpu; me.d = st.next;
+    const opts = [cpu.d, [cpu.d[1], cpu.d[0]], [-cpu.d[1], -cpu.d[0]]].map(d => ({ d, room: Cycles.room(st, cpu.r + d[0], cpu.c + d[1]) }));
+    if (LV() === 0 && Math.random() < 0.3) opts.sort(() => Math.random() - 0.5); else opts.sort((a, b) => b.room - a.room);
+    cpu.d = opts[0].room ? opts[0].d : cpu.d;
+    const mr = me.r + me.d[0], mc = me.c + me.d[1], cr = cpu.r + cpu.d[0], cc = cpu.c + cpu.d[1];
+    const meDead = !Cycles.free(st, mr, mc) || (mr === cr && mc === cc), cpuDead = !Cycles.free(st, cr, cc) || (mr === cr && mc === cc);
+    if (meDead || cpuDead) {
+      if (!meDead) st.score += 100 * st.round;
+      roundEnd(st, meDead && !cpuDead ? 'lose' : !meDead ? 'win' : 'draw'); return true;
+    }
+    me.r = mr; me.c = mc; cpu.r = cr; cpu.c = cc; st.grid[mr * N + mc] = 1; st.grid[cr * N + cc] = 2; st.score += 1;
+    return true;
+  },
+  render(st, img) {
+    st.grid.forEach((v, i) => { if (v) img[i] = v === 1 ? H.cyan : H.orange; });
+    const flash = st.phase === 'end' && st.wait % 2;
+    img[st.me.r * N + st.me.c] = st.phase === 'end' && st.result === 'lose' ? (flash ? H.red : OFF) : WHITE;
+    img[st.cpu.r * N + st.cpu.c] = st.phase === 'end' && st.result === 'win' ? (flash ? H.red : OFF) : H.yellow;
+    priority = [st.me.r * N + st.me.c, st.cpu.r * N + st.cpu.c];
+    return st.round;
+  },
+};
+
+// --- Pong : ta raquette en bas (cyan), l'ordinateur en haut (orange) ; 3 vies
+const Pong = {
+  name: 'Pong', icon: '🏓', stat: 'Lives', repeat: true,
+  help: '◀ ▶ move your paddle (bottom). Get the ball past the computer. 3 lives.',
+  init() { const st = { score: 0, lives: 3, me: 8, cpu: 8 }; Pong.serve(st, 1); return st; },
+  serve(st, dir) { st.ball = { r: 10, c: 9 + rnd(2), dr: dir, dc: pick([-1, 1]) }; st.pause = 3; },
+  speed() { return [150, 115, 85][LV()]; },
+  key(st, k) { if (k === 'left') st.me = Math.max(0, st.me - 1); if (k === 'right') st.me = Math.min(N - 4, st.me + 1); },
+  step(st) {
+    if (st.pause > 0) { st.pause--; return true; }
+    const b = st.ball;
+    // l'ordinateur suit la balle, plus ou moins bien selon la difficulté
+    if (Math.random() < [0.45, 0.62, 0.8][LV()]) { const t = b.c - 1; st.cpu += Math.sign(t - st.cpu); st.cpu = Math.max(0, Math.min(N - 4, st.cpu)); }
+    let nc = b.c + b.dc; if (nc < 0 || nc >= N) { b.dc = -b.dc; nc = b.c + b.dc; }
+    const nr = b.r + b.dr;
+    if (nr === N - 1 && nc >= st.me - 1 && nc <= st.me + 4) {                        // touche ta raquette
+      b.dr = -1; const h = nc - st.me; b.dc = h <= 0 ? -1 : h >= 3 ? 1 : b.dc || pick([-1, 1]); st.score += 10; return true;
+    }
+    if (nr === 0 && nc >= st.cpu - 1 && nc <= st.cpu + 4) { b.dr = 1; return true; }  // l'ordinateur renvoie
+    if (nr >= N) { st.lives--; if (st.lives <= 0) return false; Pong.serve(st, -1); return true; }
+    if (nr < 0) { st.score += 100; Pong.serve(st, 1); return true; }
+    b.r = nr; b.c = nc; return true;
+  },
+  render(st, img) {
+    for (let k = 0; k < 4; k++) { img[(N - 1) * N + st.me + k] = H.cyan; img[st.cpu + k] = H.orange; }
+    if (st.ball.r >= 0 && st.ball.r < N) img[st.ball.r * N + st.ball.c] = st.pause > 0 && st.pause % 2 ? OFF : WHITE;
+    priority = [st.ball.r * N + st.ball.c];
+    return st.lives;
+  },
+};
+
+// --- Brick Breaker : casse les rangées de briques avec la balle ; 3 vies
+const Bricks = {
+  name: 'Brick Breaker', icon: '🧱', stat: 'Lives', repeat: true,
+  help: '◀ ▶ move the paddle. Break all the bricks. 3 lives.',
+  init() { const st = { score: 0, lives: 3, me: 8, wall: 0 }; Bricks.build(st); Bricks.serve(st); return st; },
+  build(st) { st.bricks = new Array(N * N).fill(-1); for (let r = 1; r <= 5; r++) for (let c = 0; c < N; c++) st.bricks[r * N + c] = r - 1; st.wall++; },
+  serve(st) { st.ball = { r: 17, c: st.me + 1, dr: -1, dc: pick([-1, 1]) }; st.pause = 4; },
+  speed(st) { return Math.max(60, [170, 125, 90][LV()] - (st.wall - 1) * 10); },
+  key(st, k) { if (k === 'left') st.me = Math.max(0, st.me - 1); if (k === 'right') st.me = Math.min(N - 4, st.me + 1); },
+  step(st) {
+    if (st.pause > 0) { st.pause--; st.ball.c = st.me + 1; return true; }
+    const b = st.ball;
+    let nc = b.c + b.dc; if (nc < 0 || nc >= N) { b.dc = -b.dc; nc = b.c + b.dc; }
+    let nr = b.r + b.dr; if (nr < 0) { b.dr = 1; nr = b.r + 1; }
+    if (st.bricks[nr * N + nc] >= 0) {                       // brique touchée : elle disparaît, la balle rebondit
+      st.bricks[nr * N + nc] = -1; st.score += 10; b.dr = -b.dr;
+      if (!st.bricks.some(v => v >= 0)) { st.score += 200; Bricks.build(st); Bricks.serve(st); }
+      return true;
+    }
+    if (nr === N - 1 && nc >= st.me - 1 && nc <= st.me + 4) {
+      b.dr = -1; const h = nc - st.me; b.dc = h <= 0 ? -1 : h >= 3 ? 1 : b.dc; return true;
+    }
+    if (nr >= N) { st.lives--; if (st.lives <= 0) return false; Bricks.serve(st); return true; }
+    b.r = nr; b.c = nc; return true;
+  },
+  render(st, img) {
+    const C = [H.red, H.orange, H.yellow, H.green, H.blue];
+    st.bricks.forEach((v, i) => { if (v >= 0) img[i] = C[v]; });
+    for (let k = 0; k < 4; k++) img[(N - 1) * N + st.me + k] = H.cyan;
+    img[st.ball.r * N + st.ball.c] = WHITE;
+    priority = [st.ball.r * N + st.ball.c];
+    return st.lives;
+  },
+};
+
+// --- Connect Four : 7 colonnes × 6 rangées ; toi en rouge, l'ordinateur en jaune
+const Connect4 = {
+  name: 'Connect Four', icon: '🔴', stat: 'Wins', ok: true,
+  help: '◀ ▶ choose a column, ● (or ▼) to drop your red disc. Line up 4 to win!',
+  init() { const st = { score: 0, wins: 0 }; Connect4.reset(st); return st; },
+  reset(st) { st.b = Array.from({ length: 6 }, () => new Array(7).fill(0)); st.col = 3; st.phase = 'you'; st.line = null; },
+  speed() { return 350; },
+  drop(b, c, p) { for (let r = 5; r >= 0; r--) if (!b[r][c]) { b[r][c] = p; return r; } return -1; },
+  winner(b) {
+    for (let r = 0; r < 6; r++) for (let c = 0; c < 7; c++) { const p = b[r][c]; if (!p) continue;
+      for (const [dr, dc] of [[0, 1], [1, 0], [1, 1], [1, -1]]) {
+        const cells = [0, 1, 2, 3].map(k => [r + dr * k, c + dc * k]);
+        if (cells.every(([x, y]) => x >= 0 && x < 6 && y >= 0 && y < 7 && b[x][y] === p)) return { p, cells };
+      } }
+    return null;
+  },
+  cpuMove(st) {
+    const b = st.b, ok = [0, 1, 2, 3, 4, 5, 6].filter(c => !b[0][c]);
+    const tryWin = p => ok.find(c => { const t = b.map(r => r.slice()); Connect4.drop(t, c, p); return Connect4.winner(t); });
+    let c;
+    if (LV() >= 1) c = tryWin(2) ?? tryWin(1);
+    if (c === undefined && LV() === 2) {                     // évite de donner la victoire juste au-dessus
+      const safe = ok.filter(x => { const t = b.map(r => r.slice()); Connect4.drop(t, x, 2);
+        return ![0, 1, 2, 3, 4, 5, 6].some(y => { if (t[0][y]) return false; const u = t.map(r => r.slice()); Connect4.drop(u, y, 1); return Connect4.winner(u); }); });
+      if (safe.length) c = safe.sort((a, b2) => Math.abs(a - 3) - Math.abs(b2 - 3) + Math.random() - 0.5)[0];
+    }
+    if (c === undefined) c = LV() === 0 ? pick(ok) : ok.sort((a, b2) => Math.abs(a - 3) - Math.abs(b2 - 3) + (Math.random() - 0.5) * 3)[0];
+    Connect4.drop(b, c, 2);
+  },
+  after(st) {
+    const w = Connect4.winner(st.b);
+    if (w) { st.line = w.cells; if (w.p === 1) { st.wins++; st.score += 100; roundEnd(st, 'win'); } else roundEnd(st, 'lose'); return; }
+    if (st.b[0].every(v => v)) roundEnd(st, 'draw');
+  },
+  key(st, k) {
+    if (st.phase !== 'you') return;
+    if (k === 'left') st.col = Math.max(0, st.col - 1);
+    if (k === 'right') st.col = Math.min(6, st.col + 1);
+    if ((k === 'drop' || k === 'down') && Connect4.drop(st.b, st.col, 1) >= 0) { Connect4.after(st); if (st.phase === 'you') st.phase = 'cpu'; }
+  },
+  step(st) {
+    if (st.phase === 'cpu') { Connect4.cpuMove(st); Connect4.after(st); if (st.phase === 'cpu') st.phase = 'you'; return true; }
+    if (st.phase === 'end') { if (--st.wait > 0) return true; if (st.result === 'lose') return false; Connect4.reset(st); }
+    return true;
+  },
+  render(st, img) {
+    const blk = (r0, c0, v) => { for (let a = 0; a < 2; a++) for (let b = 0; b < 2; b++) img[(r0 + a) * N + c0 + b] = v; };
+    const flash = st.phase === 'end' && st.wait % 2;
+    st.b.forEach((row, r) => row.forEach((p, c) => {
+      const hl = st.line && st.line.some(([x, y]) => x === r && y === c) && flash;
+      blk(3 + r * 3, c * 3, !p ? OFF : hl ? WHITE : p === 1 ? H.red : H.yellow);
+      if (!p) img[(3 + r * 3) * N + c * 3] = hueByte(225);      // repère discret : un point bleu par case vide
+    }));
+    if (st.phase === 'you') blk(0, st.col * 3, H.red);
+    priority = [];
+    return st.wins;
+  },
+};
+
+// --- Tic-Tac-Toe : grille 3×3 ; toi = X cyan, l'ordinateur = O rouge
+const TTT = {
+  name: 'Tic-Tac-Toe', icon: '⭕', stat: 'Wins', ok: true,
+  help: 'Arrows move the yellow cursor, ● (or ▼) to place your X. Get 3 in a row!',
+  init() { const st = { score: 0, wins: 0 }; TTT.reset(st); return st; },
+  reset(st) { st.b = new Array(9).fill(0); st.cur = 4; st.phase = 'you'; st.line = null; },
+  speed() { return 380; },
+  LINES: [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]],
+  win(b) { for (const l of TTT.LINES) if (b[l[0]] && b[l[0]] === b[l[1]] && b[l[1]] === b[l[2]]) return { p: b[l[0]], l }; return null; },
+  minimax(b, p) {
+    const w = TTT.win(b); if (w) return w.p === 2 ? 10 : -10; if (b.every(v => v)) return 0;
+    let bestV = p === 2 ? -99 : 99;
+    b.forEach((v, i) => { if (v) return; b[i] = p; const s = TTT.minimax(b, 3 - p); b[i] = 0; bestV = p === 2 ? Math.max(bestV, s) : Math.min(bestV, s); });
+    return bestV;
+  },
+  cpuMove(st) {
+    const b = st.b, free = b.map((v, i) => v ? -1 : i).filter(i => i >= 0);
+    const finds = p => free.find(i => { b[i] = p; const w = TTT.win(b); b[i] = 0; return w; });
+    let m;
+    if (LV() === 2) { let bv = -99; free.forEach(i => { b[i] = 2; const s = TTT.minimax(b, 1); b[i] = 0; if (s > bv || (s === bv && Math.random() < 0.5)) { bv = s; m = i; } }); }
+    else if (LV() === 1) m = finds(2) ?? finds(1) ?? (b[4] ? pick(free) : 4);
+    else m = pick(free);
+    b[m] = 2;
+  },
+  after(st) {
+    const w = TTT.win(st.b);
+    if (w) { st.line = w.l; if (w.p === 1) { st.wins++; st.score += 100; roundEnd(st, 'win'); } else roundEnd(st, 'lose'); return; }
+    if (st.b.every(v => v)) roundEnd(st, 'draw');
+  },
+  key(st, k) {
+    if (st.phase !== 'you') return;
+    const r = Math.floor(st.cur / 3), c = st.cur % 3;
+    if (k === 'up' && r > 0) st.cur -= 3; if (k === 'down' && r < 2) st.cur += 3;
+    if (k === 'left' && c > 0) st.cur--; if (k === 'right' && c < 2) st.cur++;
+    if (k === 'drop' && !st.b[st.cur]) { st.b[st.cur] = 1; TTT.after(st); if (st.phase === 'you') st.phase = 'cpu'; }
+  },
+  step(st) {
+    if (st.phase === 'cpu') { TTT.cpuMove(st); TTT.after(st); if (st.phase === 'cpu') st.phase = 'you'; return true; }
+    if (st.phase === 'end') { if (--st.wait > 0) return true; if (st.result === 'lose') return false; TTT.reset(st); }
+    return true;
+  },
+  render(st, img) {
+    for (let k = 0; k < N; k++) { img[6 * N + k] = H.blue; img[13 * N + k] = H.blue; img[k * N + 6] = H.blue; img[k * N + 13] = H.blue; }
+    const flash = st.phase === 'end' && st.wait % 2;
+    st.b.forEach((p, i) => {
+      const r0 = Math.floor(i / 3) * 7, c0 = (i % 3) * 7, hl = st.line && st.line.includes(i) && flash;
+      if (p === 1) for (let k = 0; k < 6; k++) { img[(r0 + k) * N + c0 + k] = hl ? WHITE : H.cyan; img[(r0 + k) * N + c0 + 5 - k] = hl ? WHITE : H.cyan; }
+      if (p === 2) for (let a = 0; a < 6; a++) for (let b = 0; b < 6; b++) if ((a === 0 || a === 5 || b === 0 || b === 5) && !((a === 0 || a === 5) && (b === 0 || b === 5))) img[(r0 + a) * N + c0 + b] = hl ? WHITE : H.red;
+    });
+    if (st.phase === 'you' && !st.b[st.cur]) { const r0 = Math.floor(st.cur / 3) * 7 + 2, c0 = (st.cur % 3) * 7 + 2;
+      for (let a = 0; a < 2; a++) for (let b = 0; b < 2; b++) img[(r0 + a) * N + c0 + b] = H.yellow; }
+    priority = [];
+    return st.wins;
+  },
+};
+
+Snake.name = 'Snake'; Snake.icon = '🐍'; Snake.stat = 'Length';
+Tetris.name = 'Tetris'; Tetris.icon = '🟦'; Tetris.stat = 'Lines'; Tetris.repeat = true;
+const GAMES = { snake: Snake, tetris: Tetris, cycles: Cycles, connect4: Connect4, pong: Pong, bricks: Bricks, ttt: TTT };
+
+const G = () => GAMES[game];
+function render() {
+  frame.fill(OFF);
+  if (state) { const s2 = G().render(state, frame); if (s2 !== undefined) setScore(state.score, s2); $('lab2').textContent = G().stat; }
+  draw();
+}
+function tick() {
+  if (paused || over || !state) return;
+  const ok = G().step(state);
+  if (!ok) gameOver();
+  render();
+  timer = setTimeout(tick, G().speed(state));
+}
+function gameOver() {
+  over = true; const rec = state.score > 0 && state.score >= best();
+  log(`Game over — ${game} score ${state.score}`);
+  $('help').textContent = `Game over! Score ${state.score}` + (rec ? ' — 🏆 new best score!' : ` · best ${best()}`);
+  $('btnStart').classList.remove('hidden'); $('btnPause').classList.add('hidden');
+}
+function start() {
+  clearTimeout(timer); over = false; paused = false; state = G().init(); $('help').textContent = G().help;
+  $('btnStart').classList.add('hidden'); $('btnPause').classList.remove('hidden'); $('btnPause').textContent = '⏸ Pause';
+  render(); timer = setTimeout(tick, 600);
+}
+const LEVELS = ['Easy', 'Normal', 'Hard'];
+function showMenu(step) {
+  clearTimeout(timer); state = null; over = false;
+  $('views').classList.remove('off'); $('play').classList.add('hidden');
+  document.querySelectorAll('[data-gname]').forEach(e => e.textContent = G().name);
+  document.querySelectorAll('[data-gicon]').forEach(e => e.textContent = G().icon);
+  $('selBest').textContent = best();
+  $('readyInfo').textContent = `${LEVELS[+$('level').value]} · best ${best()}` + (cur.ready ? '' : ' · ⚠ curtain not connected (preview only)');
+  [1, 2, 3].forEach(n => { const v = $('v' + n); v.classList.toggle('cur', n === step); v.classList.toggle('prev', n < step); });
+  frame.fill(OFF); draw();
+}
+function newGame(g) {
+  game = g; $('views').classList.add('off'); $('play').classList.remove('hidden');
+  $('playTitle').textContent = G().icon + ' ' + G().name;
+  $('kDrop').classList.toggle('blank', g === 'snake' || g === 'cycles' || g === 'pong' || g === 'bricks');
+  $('kDrop').textContent = G().ok ? '●' : '⤓'; $('best').textContent = best();
+  start();
+}
+function press(k) {
+  if (!state || over || paused) return;
+  const r = G().key(state, k);
+  if (r === 'lock') { if (!Tetris.lock(state)) gameOver(); }
+  render();
+}
+document.querySelectorAll('[data-game]').forEach(b => b.onclick = () => { game = b.dataset.game; showMenu(2); });
+document.querySelectorAll('[data-back]').forEach(b => b.onclick = () => showMenu(+b.dataset.back));
+document.querySelectorAll('[data-go]').forEach(b => b.onclick = () => showMenu(+b.dataset.go));
+document.querySelectorAll('[data-logo]').forEach(i => i.src = $('favicon').href);
+$('v1Conn').onclick = () => $('btnConnect').click();
+$('btnPlay').onclick = () => newGame(game);
+$('btnMenu').onclick = () => showMenu(3);
+$('btnStart').onclick = start;
+$('level').value = store.get('level', '1');
+const levelShow = () => { $('levelName').textContent = LEVELS[+$('level').value]; };
+levelShow(); $('level').oninput = () => { levelShow(); store.set('level', $('level').value); };
+$('btnPause').onclick = () => {
+  if (!state || over) return;
+  paused = !paused; $('btnPause').textContent = paused ? '▶ Resume' : '⏸ Pause';
+  if (!paused) { clearTimeout(timer); timer = setTimeout(tick, 200); }
+};
+// boutons : réagissent au toucher sans délai, avec répétition si on garde le doigt
+[['kUp', 'up'], ['kDown', 'down'], ['kLeft', 'left'], ['kRight', 'right'], ['kDrop', 'drop']].forEach(([id, k]) => {
+  const el = $(id); let rep = null;
+  const stop = () => { clearInterval(rep); rep = null; };
+  el.addEventListener('pointerdown', e => { e.preventDefault(); press(k);
+    if (G().repeat && (k === 'left' || k === 'right' || (game === 'tetris' && k === 'down'))) rep = setInterval(() => press(k), game === 'tetris' ? 120 : 90); });
+  ['pointerup', 'pointerleave', 'pointercancel'].forEach(t => el.addEventListener(t, stop));
+});
+// clavier (PC) et glissés sur l'aperçu
+addEventListener('keydown', e => {
+  const k = { ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right', ' ': 'drop' }[e.key];
+  if (k) { e.preventDefault(); press(k); }
+});
+let sw = null;
+$('screen').addEventListener('pointerdown', e => { sw = [e.clientX, e.clientY]; });
+$('screen').addEventListener('pointerup', e => {
+  if (!sw) return; const dx = e.clientX - sw[0], dy = e.clientY - sw[1]; sw = null;
+  if (Math.max(Math.abs(dx), Math.abs(dy)) < 25) { press(game === 'tetris' ? 'up' : 'drop'); return; }
+  press(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up'));
+});
+showMenu(1);
+log('Lamps Arcade ready' + (IS_ANDROID ? ' (Android)' : ''));
+</script>
+</body>
+</html>

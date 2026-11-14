@@ -17,6 +17,20 @@ android {
         versionName "18." + runNumber
     }
 
+    // deux apps à partir du même code : Lamps (l'app complète) et Lamps Arcade (Snake et Tetris sur le rideau)
+    flavorDimensions 'app'
+    productFlavors {
+        lamps {
+            dimension 'app'
+            resValue 'string', 'app_name', 'Lamps'
+        }
+        arcade {
+            dimension 'app'
+            applicationIdSuffix '.arcade'
+            resValue 'string', 'app_name', 'Lamps Arcade'
+        }
+    }
+
     // Clé fixe : chaque nouvel APK s'installe par-dessus l'ancien sans perdre les réglages
     signingConfigs {
         lampes {

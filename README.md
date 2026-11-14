@@ -22,6 +22,13 @@ New versions install over the old one and keep your settings.
 
 Drawing a picture on the curtain in one go needs the phone: the PC's Bluetooth sends packets that are too small for it.
 
+## Lamps Arcade
+
+A second, separate app to **play Snake and Tetris on the 20×20 curtain**, with touch controls on the phone.
+Download **Lamps-Arcade.apk** from the [latest release](../../releases/latest); it installs next to Lamps.
+On a PC (Chrome/Edge) or an iPhone (Bluefy), open `web/arcade.html` (with GitHub Pages: `https://flyinnrabbit.github.io/lampes/web/arcade.html`).
+Only one app can drive the curtain at a time: close Lamps before playing.
+
 ## Features
 
 - **Lamps and groups:** connect several lamps, control them all at once or by group (*All*, *Sticks*, *Curtain*, or your own groups). They reconnect automatically, and a watchdog reconnects a lamp that stops answering.
@@ -39,6 +46,7 @@ Drawing a picture on the curtain in one go needs the phone: the PC's Bluetooth s
 | Path | What it is |
 |---|---|
 | `web/lampes-bt.html` | The whole app, one page shared by the PC and Android |
+| `web/arcade.html` | Lamps Arcade: Snake and Tetris on the curtain |
 | `android/` | Android shell: shows the page, native Bluetooth (512-byte packets), phone sound analysis, screen capture |
 | `pc/installer-head.cmd` | Windows installer template (the page is appended to it at build time) |
 | `.github/workflows/apk.yml` | Every push to `main` builds the APK and the PC installer and publishes them as a release |

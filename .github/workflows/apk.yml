@@ -28,13 +28,17 @@ jobs:
         run: |
           mkdir -p android/app/src/main/assets
           cp web/lampes-bt.html android/app/src/main/assets/index.html
+          mkdir -p android/app/src/arcade/assets
+          cp web/arcade.html android/app/src/arcade/assets/index.html
 
       - name: Build
         working-directory: android
         run: gradle assembleRelease --no-daemon --stacktrace
 
       - name: Rename
-        run: cp android/app/build/outputs/apk/release/app-release.apk Lampes.apk
+        run: |
+          cp android/app/build/outputs/apk/lamps/release/app-lamps-release.apk Lampes.apk
+          cp android/app/build/outputs/apk/arcade/release/app-arcade-release.apk Lamps-Arcade.apk
 
       # PC installer: installer header + the page, in one self-contained Windows file
       - name: Build the PC installer
@@ -48,6 +52,7 @@ jobs:
           name: Lamps
           path: |
             Lampes.apk
+            Lamps-Arcade.apk
             Install-Lamps.cmd
 
       # publish both files in "Releases": direct links for the phone and the PC
@@ -56,5 +61,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="v${{ github.run_number }}"
-          gh release create "$TAG" Lampes.apk Install-Lamps.cmd --title "Lamps $TAG" \
-            --notes "Phone: download Lampes.apk and open it. PC (Windows): download Install-Lamps.cmd and double-click it." --latest
+          gh release create "$TAG" Lampes.apk Lamps-Arcade.apk Install-Lamps.cmd --title "Lamps $TAG" \
+            --notes "Phone: Lampes.apk (lamps app) and Lamps-Arcade.apk (Snake and Tetris on the curtain). PC (Windows): download Install-Lamps.cmd and double-click it." --latest
