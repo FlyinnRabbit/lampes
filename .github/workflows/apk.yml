@@ -66,7 +66,7 @@ jobs:
           cat > release-notes.md <<'NOTES'
           ## 📱 Phone (Android)
           - **Lampes.apk**: the Lamps app (MELK sticks + Hello Fairy curtain: colours, animations, flags, music, Ambilight, timer, alarm...).
-          - **Lamps-Arcade.apk**: Lamps Arcade, 7 games on the 20×20 curtain: Snake, Tetris, Light Cycles, Connect Four, Pong, Brick Breaker, Tic-Tac-Toe (joystick and Game Boy-style controls, 2-player mode for Connect Four and Tic-Tac-Toe).
+          - **Lamps-Arcade.apk**: Lamps Arcade, 8 games on the 20×20 curtain: Snake, Tetris, Light Cycles, Connect Four, Pong, Brick Breaker, Tic-Tac-Toe, Maze Muncher (joystick and Game Boy-style controls, 2-player mode for Connect Four and Tic-Tac-Toe).
 
           ## 💻 PC (Windows)
           - **Install-Lamps.cmd**: download it and double-click it. It installs **Lamps** and **Lamps Arcade** (Desktop + Start menu shortcuts), using Chrome or Edge.
